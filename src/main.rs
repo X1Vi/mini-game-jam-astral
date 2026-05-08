@@ -11,9 +11,12 @@ use dialogue::{generic_dialogue, Dialogue};
 use inventory::{Inventory, Item};
 
 const TILE: f32 = 32.0;
-const MAP_W: usize = 25;
-const MAP_H: usize = 18;
+const MAP_W: usize = 28;
+const MAP_H: usize = 20;
 const SPEED: f32 = 150.0;
+const ENEMY_FOLLOW_SPEED: f32 = 65.0;
+const BAT_FOLLOW_SPEED: f32 = 85.0;
+const FOLLOW_RANGE: f32 = 4.0 * TILE;
 const PARRY_TIMEOUT: f32 = 1.2;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -40,6 +43,7 @@ struct WorldEntity {
     y: f32,
     kind: EntityKind,
     alive: bool,
+    speed: f32,
 }
 
 #[allow(dead_code)]
@@ -132,56 +136,98 @@ fn add_wall_border(m: &mut Vec<Vec<i32>>) {
 }
 
 fn make_forest_map() -> Vec<Vec<i32>> {
-    // A forest clearing with trees, a pond, and open paths
     let mut m = vec![vec![0i32; MAP_W]; MAP_H];
     add_wall_border(&mut m);
-    // Tree cluster top-left
-    for y in 3..6 { for x in 5..8 { m[y][x] = 1; } }
-    // Tree cluster center-right
-    for y in 9..12 { for x in 14..17 { m[y][x] = 1; } }
+    // Tree clusters (solid walls)
+    for y in 3..6 { for x in 3..7 { m[y][x] = 1; } }
+    for y in 9..12 { for x in 17..21 { m[y][x] = 1; } }
+    for y in 14..17 { for x in 8..11 { m[y][x] = 1; } }
     // Pond
-    for y in 4..7 { for x in 2..4 { m[y][x] = 2; } }
-    for y in 11..14 { for x in 8..10 { m[y][x] = 2; } }
+    for y in 6..9 { for x in 12..15 { m[y][x] = 2; } }
+    for y in 7..8 { for x in 11..16 { m[y][x] = 2; } }
     // Scattered trees
-    m[3][12] = 1; m[4][16] = 1; m[8][4] = 1;
-    m[13][15] = 1; m[14][3] = 1; m[6][18] = 1;
-    m[7][9] = 1; m[9][19] = 1; m[12][21] = 1;
+    m[3][14] = 1; m[4][20] = 1; m[6][22] = 1;
+    m[12][4] = 1; m[13][24] = 1; m[15][20] = 1;
+    m[17][15] = 1; m[8][5] = 1; m[11][14] = 1;
     m
 }
 
 fn make_frozen_map() -> Vec<Vec<i32>> {
-    // A frozen wasteland with ice walls and snow patches
     let mut m = vec![vec![0i32; MAP_W]; MAP_H];
     add_wall_border(&mut m);
-    // Ice wall labyrinth
-    for y in 3..5 { for x in 3..10 { m[y][x] = 1; } }
-    for y in 11..14 { for x in 4..8 { m[y][x] = 1; } }
-    for y in 7..10 { for x in 16..22 { m[y][x] = 1; } }
-    for y in 4..7 { for x in 18..20 { m[y][x] = 1; } }
-    // Frozen water pools
-    for y in 7..10 { for x in 6..9 { m[y][x] = 2; } }
-    for y in 13..16 { for x in 12..15 { m[y][x] = 2; } }
-    // Scattered ice pillars
-    m[3][21] = 1; m[6][3] = 1; m[10][15] = 1;
-    m[13][20] = 1; m[15][5] = 1; m[8][12] = 1;
+    // Ice walls
+    for y in 3..5 { for x in 5..12 { m[y][x] = 1; } }
+    for y in 8..11 { for x in 18..25 { m[y][x] = 1; } }
+    for y in 13..16 { for x in 8..12 { m[y][x] = 1; } }
+    for y in 11..13 { for x in 12..16 { m[y][x] = 1; } }
+    // Frozen pools
+    for y in 6..9 { for x in 3..6 { m[y][x] = 2; } }
+    for y in 14..17 { for x in 18..21 { m[y][x] = 2; } }
+    // Ice pillars
+    m[5][16] = 1; m[8][13] = 1; m[11][5] = 1;
+    m[16][14] = 1; m[3][21] = 1; m[13][22] = 1;
+    m[7][24] = 1; m[17][7] = 1; m[10][9] = 1;
     m
 }
 
 fn make_ruins_map() -> Vec<Vec<i32>> {
-    // Ancient ruins with maze-like walls and open courtyards
     let mut m = vec![vec![0i32; MAP_W]; MAP_H];
     add_wall_border(&mut m);
-    // Ruin walls forming chambers
-    for y in 3..6 { for x in 12..18 { m[y][x] = 1; } }
-    for y in 9..12 { for x in 3..7 { m[y][x] = 1; } }
-    for y in 6..10 { for x in 15..17 { m[y][x] = 1; } }
-    for y in 3..5 { for x in 5..8 { m[y][x] = 1; } }
-    // Broken pillars (scattered walls)
-    m[5][3] = 1; m[5][4] = 1; m[8][20] = 1; m[8][21] = 1;
-    m[12][18] = 1; m[12][19] = 1; m[14][15] = 1;
-    m[10][13] = 1; m[7][6] = 1; m[13][7] = 1;
-    // Water feature in courtyard
-    for y in 7..9 { for x in 9..12 { m[y][x] = 2; } }
+    // Ruin chambers
+    for y in 3..7 { for x in 15..20 { m[y][x] = 1; } }
+    for y in 11..15 { for x in 5..10 { m[y][x] = 1; } }
+    for y in 8..11 { for x in 20..23 { m[y][x] = 1; } }
+    for y in 5..8 { for x in 4..7 { m[y][x] = 1; } }
+    // Water
+    for y in 10..13 { for x in 12..16 { m[y][x] = 2; } }
+    // Broken pillars
+    m[3][5] = 1; m[4][6] = 1; m[7][22] = 1; m[7][23] = 1;
+    m[14][17] = 1; m[14][18] = 1; m[16][12] = 1;
+    m[9][3] = 1; m[15][4] = 1; m[12][22] = 1;
+    m[7][12] = 1; m[15][24] = 1; m[18][14] = 1;
+    m
+}
+
+fn make_desert_map() -> Vec<Vec<i32>> {
+    let mut m = vec![vec![0i32; MAP_W]; MAP_H];
+    add_wall_border(&mut m);
+    // Stone monoliths
+    for y in 3..5 { for x in 20..24 { m[y][x] = 1; } }
+    for y in 15..18 { for x in 3..7 { m[y][x] = 1; } }
+    for y in 7..9 { for x in 7..10 { m[y][x] = 1; } }
+    for y in 4..7 { for x in 23..26 { m[y][x] = 1; } }
+    // Central oasis (water) — offset so spawn point (2,9) stays clear
+    for y in 8..12 { for x in 13..17 { m[y][x] = 2; } }
+    for y in 9..11 { for x in 12..18 { m[y][x] = 2; } }
+    // Scattered rocks
+    m[5][14] = 1; m[6][20] = 1; m[13][8] = 1;
+    m[14][22] = 1; m[3][10] = 1; m[16][17] = 1;
+    m[11][4] = 1; m[17][10] = 1; m[4][17] = 1;
+    m[12][24] = 1; m[6][3] = 1; m[15][13] = 1;
+    m
+}
+
+fn make_caves_map() -> Vec<Vec<i32>> {
+    // Start fully walled, then carve passages
+    let mut m = vec![vec![1i32; MAP_W]; MAP_H];
+    // Main horizontal corridor
+    for x in 2..26 { m[9][x] = 0; m[10][x] = 0; }
+    // Left vertical passage
+    for y in 2..18 { m[y][5] = 0; m[y][6] = 0; }
+    // Right vertical passage
+    for y in 2..18 { m[y][21] = 0; m[y][22] = 0; }
+    // Top-left chamber
+    for y in 3..8 { for x in 8..14 { m[y][x] = 0; } }
+    // Bottom-left chamber
+    for y in 12..18 { for x in 9..16 { m[y][x] = 0; } }
+    // Top-right chamber
+    for y in 3..8 { for x in 16..22 { m[y][x] = 0; } }
+    // Bottom-right chamber
+    for y in 12..17 { for x in 17..25 { m[y][x] = 0; } }
+    // Underground lake in top-left chamber
+    for y in 5..8 { for x in 9..13 { m[y][x] = 2; } }
+    // Small pool in bottom-right chamber
+    for y in 14..16 { for x in 19..22 { m[y][x] = 2; } }
     m
 }
 
@@ -196,78 +242,22 @@ fn collide_map(map: &[Vec<i32>], x: f32, y: f32) -> bool {
 
 fn make_entities() -> Vec<WorldEntity> {
     vec![
-        WorldEntity {
-            x: 6.0 * TILE,
-            y: 3.0 * TILE,
-            kind: EntityKind::Npc(0),
-            alive: true,
-        },
-        WorldEntity {
-            x: 15.0 * TILE,
-            y: 10.0 * TILE,
-            kind: EntityKind::Npc(1),
-            alive: true,
-        },
-        WorldEntity {
-            x: 5.0 * TILE,
-            y: 5.0 * TILE,
-            kind: EntityKind::Npc(2),
-            alive: true,
-        },
-        WorldEntity {
-            x: 9.0 * TILE,
-            y: 13.0 * TILE,
-            kind: EntityKind::Enemy(Enemy::basic("Bandit", 50, 9, 11)),
-            alive: true,
-        },
-        WorldEntity {
-            x: 18.0 * TILE,
-            y: 4.0 * TILE,
-            kind: EntityKind::Enemy(Enemy::basic("Bat", 30, 7, 16)),
-            alive: true,
-        },
-        WorldEntity {
-            x: 12.0 * TILE,
-            y: 7.0 * TILE,
-            kind: EntityKind::Enemy(Enemy::basic("Ghost", 55, 10, 13)),
-            alive: true,
-        },
-        WorldEntity {
-            x: 20.0 * TILE,
-            y: 14.0 * TILE,
-            kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)),
-            alive: true,
-        },
-        WorldEntity {
-            x: 3.0 * TILE,
-            y: 15.0 * TILE,
-            kind: EntityKind::Pickup(Item::health_potion(), false),
-            alive: true,
-        },
-        WorldEntity {
-            x: 22.0 * TILE,
-            y: 8.0 * TILE,
-            kind: EntityKind::Pickup(Item::mana_potion(), false),
-            alive: true,
-        },
-        WorldEntity {
-            x: 10.0 * TILE,
-            y: 15.0 * TILE,
-            kind: EntityKind::Pickup(Item::astral_herb(), false),
-            alive: true,
-        },
-        WorldEntity {
-            x: 14.0 * TILE,
-            y: 5.0 * TILE,
-            kind: EntityKind::Enemy(Enemy::basic("Giant Bat", 40, 8, 18)),
-            alive: true,
-        },
-        WorldEntity {
-            x: 7.0 * TILE,
-            y: 11.0 * TILE,
-            kind: EntityKind::Enemy(Enemy::basic("Shadow Ghost", 65, 12, 12)),
-            alive: true,
-        },
+        // NPCs (speed 0 = stationary)
+        WorldEntity { x: 4.0 * TILE, y: 3.0 * TILE, kind: EntityKind::Npc(0), alive: true, speed: 0.0 },
+        WorldEntity { x: 19.0 * TILE, y: 3.0 * TILE, kind: EntityKind::Npc(1), alive: true, speed: 0.0 },
+        WorldEntity { x: 4.0 * TILE, y: 15.0 * TILE, kind: EntityKind::Npc(2), alive: true, speed: 0.0 },
+        // Items (speed 0)
+        WorldEntity { x: 11.0 * TILE, y: 12.0 * TILE, kind: EntityKind::Pickup(Item::health_potion(), false), alive: true, speed: 0.0 },
+        WorldEntity { x: 18.0 * TILE, y: 14.0 * TILE, kind: EntityKind::Pickup(Item::mana_potion(), false), alive: true, speed: 0.0 },
+        WorldEntity { x: 6.0 * TILE, y: 17.0 * TILE, kind: EntityKind::Pickup(Item::astral_herb(), false), alive: true, speed: 0.0 },
+        // Enemies with follow speeds, placed in open areas
+        WorldEntity { x: 16.0 * TILE, y: 5.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bat", 25, 4, 16)), alive: true, speed: BAT_FOLLOW_SPEED },
+        WorldEntity { x: 22.0 * TILE, y: 10.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bat", 25, 4, 16)), alive: true, speed: BAT_FOLLOW_SPEED },
+        WorldEntity { x: 8.0 * TILE, y: 9.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bandit", 50, 9, 11)), alive: true, speed: ENEMY_FOLLOW_SPEED },
+        WorldEntity { x: 14.0 * TILE, y: 16.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bandit", 50, 9, 11)), alive: true, speed: ENEMY_FOLLOW_SPEED },
+        WorldEntity { x: 21.0 * TILE, y: 5.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Ghost", 55, 10, 13)), alive: true, speed: ENEMY_FOLLOW_SPEED },
+        WorldEntity { x: 24.0 * TILE, y: 15.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)), alive: true, speed: ENEMY_FOLLOW_SPEED },
+        WorldEntity { x: 13.0 * TILE, y: 7.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Ghost", 55, 10, 13)), alive: true, speed: ENEMY_FOLLOW_SPEED },
     ]
 }
 
@@ -284,7 +274,7 @@ impl Game {
             inventory: Inventory::new(),
             combat: None,
             dialogue: None,
-            maps: vec![make_forest_map(), make_frozen_map(), make_ruins_map()],
+            maps: vec![make_forest_map(), make_frozen_map(), make_ruins_map(), make_desert_map(), make_caves_map()],
             current_map: 0,
             msg: String::new(),
             msg_timer: 0.0,
@@ -387,6 +377,40 @@ fn draw_btn(text: &str, x: f32, y: f32, w: f32, h: f32, hover: bool, color: Colo
     hover
 }
 
+fn draw_wrapped_text(text: &str, x: f32, y: f32, font_size: f32, color: Color, max_width: f32, max_lines: usize) {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let mut lines: Vec<String> = Vec::new();
+    let mut current_line = String::new();
+
+    for word in words {
+        let test = if current_line.is_empty() {
+            word.to_string()
+        } else {
+            format!("{} {}", current_line, word)
+        };
+        if measure_text(&test, None, font_size as u16, 1.0).width > max_width && !current_line.is_empty() {
+            lines.push(std::mem::replace(&mut current_line, word.to_string()));
+        } else {
+            current_line = test;
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+
+    let total = lines.len();
+    let draw_count = total.min(max_lines);
+    let line_h = font_size * 1.35;
+    for (i, line) in lines.iter().take(draw_count).enumerate() {
+        let s = if i + 1 == draw_count && total > draw_count {
+            format!("{}...", line.trim_end_matches(' '))
+        } else {
+            line.clone()
+        };
+        draw_text(&s, x, y + i as f32 * line_h, font_size, color);
+    }
+}
+
 fn draw_bar(label: &str, current: i32, max: i32, x: f32, y: f32, w: f32, h: f32, color: Color) {
     draw_rectangle(x, y, w, h, DARKGRAY);
     if max > 0 {
@@ -423,27 +447,35 @@ fn update_main_menu(game: &mut Game) {
 fn update_char_select(game: &mut Game) {
     let sw = screen_width();
     let sh = screen_height();
+
+    let bw = sw * 0.38;
+    let bh = sh * 0.28;
+    let gap_x = sw * 0.04;
+    let gap_y = sh * 0.04;
+    let total_w = bw + gap_x + bw;
+    let margin_x = (sw - total_w) / 2.0;
+    let card_x0 = margin_x;
+    let card_x1 = margin_x + bw + gap_x;
+    let card_y0 = sh * 0.18;
+    let card_y1 = card_y0 + bh + gap_y;
+
     let classes = [
-        (CharacterClass::Warrior, 0.15, 0.25),
-        (CharacterClass::Knight, 0.55, 0.25),
-        (CharacterClass::Archer, 0.15, 0.55),
-        (CharacterClass::Mage, 0.55, 0.55),
+        (CharacterClass::Warrior, card_x0, card_y0),
+        (CharacterClass::Knight, card_x1, card_y0),
+        (CharacterClass::Archer, card_x0, card_y1),
+        (CharacterClass::Mage, card_x1, card_y1),
     ];
 
     game.hover_class = None;
-    for (cc, rx, ry) in &classes {
-        let bw = sw * 0.35;
-        let bh = sh * 0.25;
-        let bx = sw * rx;
-        let by = sh * ry;
-        if mouse_in_rect(bx, by, bw, bh) {
+    for (cc, bx, by) in &classes {
+        if mouse_in_rect(*bx, *by, bw, bh) {
             game.hover_class = Some(*cc);
             if is_mouse_button_pressed(MouseButton::Left) {
                 game.player = Some(Character::new(*cc));
                 game.px = 12.0 * TILE;
                 game.py = 9.0 * TILE;
                 game.scene = Scene::Wandering;
-                game.msg = format!("Chosen: {} — venture forth!", cc.class_name());
+                game.msg = format!("Chosen: {} -- venture forth!", cc.class_name());
                 game.msg_timer = 2.0;
                 return;
             }
@@ -573,15 +605,67 @@ fn update_wandering(game: &mut Game, dt: f32) {
         }
     }
 
+    // Enemy follow behavior + auto-combat on touch
+    for idx in 0..game.entities.len() {
+        let e = &game.entities[idx];
+        if !e.alive {
+            continue;
+        }
+        let enemy_spd = e.speed;
+        if enemy_spd <= 0.0 {
+            continue;
+        }
+        let is_enemy = matches!(e.kind, EntityKind::Enemy(_));
+        if !is_enemy {
+            continue;
+        }
+
+        let dx = game.px - e.x;
+        let dy = game.py - e.y;
+        let dist_sq = dx * dx + dy * dy;
+
+        // Auto-trigger combat on touch
+        if dist_sq < TILE * TILE {
+            let enemy_clone = if let EntityKind::Enemy(ref en) = game.entities[idx].kind {
+                Some(en.clone())
+            } else {
+                None
+            };
+            if let Some(en) = enemy_clone {
+                game.entities[idx].alive = false;
+                game.start_combat(en);
+                return;
+            }
+        }
+
+        // Follow if within range
+        if dist_sq < FOLLOW_RANGE * FOLLOW_RANGE {
+            let dist = dist_sq.sqrt().max(1.0);
+            let step = enemy_spd * dt;
+            let nx = e.x + (dx / dist) * step;
+            let ny = e.y + (dy / dist) * step;
+
+            // Only move if not colliding with walls
+            let margin = 4.0;
+            if !collide_map(&game.maps[game.current_map], nx + margin, ny + margin)
+                && !collide_map(&game.maps[game.current_map], nx + TILE - margin, ny + TILE - margin)
+            {
+                game.entities[idx].x = nx;
+                game.entities[idx].y = ny;
+            }
+        }
+    }
+
     // Map edge transition
     let tile_x = (game.px / TILE) as usize;
+    let map_names = ["Forest", "Frozen Wasteland", "Ancient Ruins", "Desert Oasis", "Crystal Caves"];
     if tile_x >= MAP_W - 2 && game.current_map + 1 < game.maps.len()
         && is_key_pressed(KeyCode::M)
     {
         game.current_map += 1;
         game.px = 2.0 * TILE;
         game.py = 9.0 * TILE;
-        game.msg = format!("Entering area {}", game.current_map + 1);
+        game.msg = format!("Entering {}", map_names[game.current_map]);
         game.msg_timer = 1.5;
     } else if tile_x <= 1 && game.current_map > 0
         && is_key_pressed(KeyCode::M)
@@ -589,7 +673,7 @@ fn update_wandering(game: &mut Game, dt: f32) {
         game.current_map -= 1;
         game.px = (MAP_W - 3) as f32 * TILE;
         game.py = 9.0 * TILE;
-        game.msg = format!("Entering area {}", game.current_map + 1);
+        game.msg = format!("Entering {}", map_names[game.current_map]);
         game.msg_timer = 1.5;
     }
 
@@ -838,32 +922,60 @@ fn draw_main_menu(_game: &Game) {
 
     draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.04, 0.02, 0.08, 1.0));
 
-    draw_rectangle(sw * 0.5 - 80.0, 0.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
-    draw_rectangle(sw * 0.5 - 80.0, sh - 3.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
-
+    // Title
     let title = "ASTRAL LEGENDS";
     let tw = measure_text(title, None, 48, 1.0).width;
-    draw_text(title, sw * 0.5 - tw / 2.0, sh * 0.25, 48.0, GOLD);
+    draw_text(title, sw * 0.5 - tw / 2.0, sh * 0.20, 48.0, GOLD);
 
     let sub = "A Turn-Based UI RPG";
     let sw2 = measure_text(sub, None, 18, 1.0).width;
-    draw_text(sub, sw * 0.5 - sw2 / 2.0, sh * 0.32, 18.0, LIGHTGRAY);
+    draw_text(sub, sw * 0.5 - sw2 / 2.0, sh * 0.27, 18.0, LIGHTGRAY);
 
-    draw_rectangle(sw * 0.5 - 60.0, sh * 0.36, 120.0, 2.0, Color::new(0.6, 0.5, 0.8, 1.0));
+    // Controls section
+    let col1_x = sw * 0.08;
+    let col2_x = sw * 0.55;
+    let ctrl_y = sh * 0.37;
+    let line_h = 18.0;
 
-    let enter = "Press ENTER to begin";
-    let ew = measure_text(enter, None, 24, 1.0).width;
-    draw_text(enter, sw * 0.5 - ew / 2.0, sh * 0.48, 24.0, WHITE);
+    // Column 1: Wandering
+    draw_text("Wandering Controls", col1_x, ctrl_y, 18.0, GOLD);
+    let wander_lines = [
+        "WASD  - Move player",
+        "E     - Interact / collect items",
+        "I     - Open inventory",
+        "V     - Toggle Knight visor",
+        "ESC   - Pause / resume",
+        "M     - Switch area (at map edge)",
+    ];
+    for (i, line) in wander_lines.iter().enumerate() {
+        draw_text(line, col1_x, ctrl_y + 24.0 + (i + 1) as f32 * line_h, 15.0, LIGHTGRAY);
+    }
 
-    let space = "Press SPACE to begin";
-    let sw3 = measure_text(space, None, 16, 1.0).width;
-    draw_text(space, sw * 0.5 - sw3 / 2.0, sh * 0.52, 16.0, GRAY);
+    // Column 2: Combat
+    draw_text("Combat Controls", col2_x, ctrl_y, 18.0, GOLD);
+    let combat_lines = [
+        "1-4   - Select action",
+        "F     - Flee from battle",
+        "Space - Parry (timing minigame)",
+    ];
+    for (i, line) in combat_lines.iter().enumerate() {
+        draw_text(line, col2_x, ctrl_y + 24.0 + (i + 1) as f32 * line_h, 15.0, LIGHTGRAY);
+    }
 
+    // Start hint
+    let start = "Press ENTER or SPACE to begin";
+    let start_w = measure_text(start, None, 18, 1.0).width;
+    let btn_h = 32.0;
+    let btn_x = sw * 0.5 - start_w / 2.0 - 10.0;
+    let btn_y = sh * 0.62 - btn_h / 2.0;
+    draw_rectangle(btn_x, btn_y, start_w + 20.0, btn_h, Color::new(0.15, 0.08, 0.15, 1.0));
+    draw_rectangle_lines(btn_x, btn_y, start_w + 20.0, btn_h, 1.0, GOLD);
+    draw_text(start, sw * 0.5 - start_w / 2.0, btn_y + btn_h * 0.68, 18.0, WHITE);
+
+    // Tagline
     let tag = "Myths. Magic. Steel.";
     let tw2 = measure_text(tag, None, 18, 1.0).width;
-    draw_text(tag, sw * 0.5 - tw2 / 2.0, sh * 0.70, 18.0, Color::new(0.7, 0.6, 0.7, 1.0));
-
-    draw_rectangle(sw * 0.5 - 50.0, sh * 0.85, 100.0, 1.0, Color::new(0.5, 0.4, 0.6, 1.0));
+    draw_text(tag, sw * 0.5 - tw2 / 2.0, sh * 0.78, 18.0, Color::new(0.7, 0.6, 0.7, 1.0));
 
     let ver = "Astral Legends v0.1.0";
     let vw = measure_text(ver, None, 12, 1.0).width;
@@ -893,37 +1005,61 @@ fn draw_intro(_game: &Game) {
 fn draw_char_select(game: &Game) {
     let sw = screen_width();
     let sh = screen_height();
+    let ts = (sh / 500.0).max(1.2);
+
+    let bw = sw * 0.38;
+    let bh = sh * 0.28;
+    let gap_x = sw * 0.04;
+    let gap_y = sh * 0.04;
+    let total_w = bw + gap_x + bw;
+    let margin_x = (sw - total_w) / 2.0;
+    let card_x0 = margin_x;
+    let card_x1 = margin_x + bw + gap_x;
+    let card_y0 = sh * 0.18;
+    let card_y1 = card_y0 + bh + gap_y;
+
     let classes = [
-        (CharacterClass::Warrior, 0.15, 0.25),
-        (CharacterClass::Knight, 0.55, 0.25),
-        (CharacterClass::Archer, 0.15, 0.55),
-        (CharacterClass::Mage, 0.55, 0.55),
+        CharacterClass::Warrior,
+        CharacterClass::Knight,
+        CharacterClass::Archer,
+        CharacterClass::Mage,
     ];
     let colors = [RED, Color::new(0.7, 0.7, 0.8, 1.0), GREEN, BLUE];
 
-    draw_text("Choose Your Champion", sw * 0.22, sh * 0.10, 34.0, GOLD);
+    draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.04, 0.02, 0.08, 1.0));
 
-    for (i, (cc, rx, ry)) in classes.iter().enumerate() {
+    let title = "Choose Your Champion";
+    let tw = measure_text(title, None, (32.0 * ts) as u16, 1.0).width;
+    draw_text(title, sw * 0.5 - tw / 2.0, sh * 0.10, 32.0 * ts, GOLD);
+
+    for (i, cc) in classes.iter().enumerate() {
         let col = colors[i];
-        let bw = sw * 0.35;
-        let bh = sh * 0.25;
-        let bx = sw * rx;
-        let by = sh * ry;
+        let bx = if i % 2 == 0 { card_x0 } else { card_x1 };
+        let by = if i < 2 { card_y0 } else { card_y1 };
         let hover = game.hover_class == Some(*cc);
 
         let bg = if hover {
-            Color::new(col.r * 0.5, col.g * 0.5, col.b * 0.5, 1.0)
+            Color::new(col.r * 0.8, col.g * 0.8, col.b * 0.8, 1.0)
         } else {
-            Color::new(col.r * 0.25, col.g * 0.25, col.b * 0.25, 1.0)
+            Color::new(col.r * 0.25, col.g * 0.25, col.b * 0.25, 0.85)
         };
         draw_rectangle(bx, by, bw, bh, bg);
-        draw_rectangle_lines(bx, by, bw, bh, 2.0, if hover { WHITE } else { GRAY });
+        draw_rectangle_lines(bx, by, bw, bh, 2.0, if hover { WHITE } else { Color::new(0.3, 0.3, 0.3, 1.0) });
 
-        let mname = cc.myth_name();
-        draw_text(mname, bx + 12.0, by + 24.0, 26.0, col);
-        let desc = format!("{} ({})", cc.class_name(), cc.myth_name());
-        draw_text(&desc, bx + 12.0, by + 44.0, 14.0, LIGHTGRAY);
-        draw_text(cc.myth_origin(), bx + 12.0, by + 62.0, 11.0, GRAY);
+        draw_text(cc.myth_name(), bx + 14.0, by + 28.0 * ts, 26.0 * ts, WHITE);
+
+        let desc = format!("{} - {}", cc.class_name(), cc.myth_name());
+        draw_text(&desc, bx + 14.0, by + 48.0 * ts, 15.0 * ts, LIGHTGRAY);
+
+        let avail_w = (bw - 64.0 * ts - 20.0).max(80.0);
+        draw_wrapped_text(cc.myth_origin(), bx + 14.0, by + 66.0 * ts, 12.0 * ts, GRAY, avail_w, 3);
+
+        let tmp = Character::new(*cc);
+        let stats = format!(
+            "HP:{}  MP:{}  STR:{}  AGI:{}  INT:{}  VIT:{}",
+            tmp.max_hp, tmp.max_mana, tmp.str, tmp.agi, tmp.int, tmp.vit
+        );
+        draw_text(&stats, bx + 14.0, by + bh - 12.0, 14.0 * ts, GRAY);
 
         let char_tex = match cc {
             CharacterClass::Warrior => &game.sprites.char_warrior,
@@ -931,20 +1067,16 @@ fn draw_char_select(game: &Game) {
             CharacterClass::Archer => &game.sprites.char_ranger,
             CharacterClass::Mage => &game.sprites.dark_mage,
         };
-        draw_texture_ex(char_tex, bx + bw - 80.0, by + 20.0, WHITE, DrawTextureParams {
-            dest_size: Some(Vec2::new(64.0, 64.0)),
+        let sprite_size = 64.0 * ts;
+        draw_texture_ex(char_tex, bx + bw - sprite_size - 10.0, by + 8.0, WHITE, DrawTextureParams {
+            dest_size: Some(Vec2::new(sprite_size, sprite_size)),
             ..Default::default()
         });
-
-        let tmp = Character::new(*cc);
-        let stats = format!(
-            "HP:{}  MANA:{}  STR:{}  AGI:{}  INT:{}  VIT:{}",
-            tmp.max_hp, tmp.max_mana, tmp.str, tmp.agi, tmp.int, tmp.vit
-        );
-        draw_text(&stats, bx + 12.0, by + bh - 16.0, 13.0, GRAY);
     }
 
-    draw_text("ESC to go back", sw * 0.40, sh * 0.92, 16.0, GRAY);
+    let esc = "ESC to go back";
+    let esc_w = measure_text(esc, None, (15.0 * ts) as u16, 1.0).width;
+    draw_text(esc, sw * 0.5 - esc_w / 2.0, sh * 0.94, 15.0 * ts, GRAY);
 }
 
 fn draw_wandering(game: &Game) {
@@ -1072,10 +1204,12 @@ fn draw_wandering(game: &Game) {
 
         if player.class == CharacterClass::Knight {
             let vtext = match player.visor_state {
-                character::VisorState::Up => "visor:UP",
-                character::VisorState::Down => "visor:DOWN",
+                character::VisorState::Up => "VISOR:UP",
+                character::VisorState::Down => "VISOR:DOWN",
             };
-            draw_text(vtext, px - 4.0, py - 10.0, 12.0, YELLOW);
+            let vw = measure_text(vtext, None, 12, 1.0).width;
+            draw_rectangle(px + 2.0, py - 10.0, vw + 4.0, 14.0, Color::new(0.0, 0.0, 0.0, 0.7));
+            draw_text(vtext, px + 4.0, py - 10.0, 12.0, YELLOW);
         }
     }
 
@@ -1089,11 +1223,14 @@ fn draw_wandering(game: &Game) {
 
     if game.msg_timer > 0.0 {
         let alpha = (game.msg_timer.min(1.0) * 255.0) as u8;
+        let msg_w = measure_text(&game.msg, None, 20, 1.0).width;
+        let mg = (sw * 0.5 - msg_w / 2.0) - 8.0;
+        draw_rectangle(mg, sh * 0.08 - 18.0, msg_w + 16.0, 30.0, Color::new(0.0, 0.0, 0.0, 0.8));
         draw_text(
             &game.msg,
-            sw * 0.1,
-            sh * 0.1,
-            20.0,
+            sw * 0.5 - msg_w / 2.0,
+            sh * 0.08 + 4.0,
+            22.0,
             Color::new(1.0, 0.9, 0.3, alpha as f32 / 255.0),
         );
     }
@@ -1190,7 +1327,7 @@ fn draw_combat(game: &Game) {
 
     // Stats
     let stats = format!("STR:{} AGI:{} INT:{} VIT:{}", player.str, player.agi, player.int, player.vit);
-    draw_text(&stats, ppanel_x + 8.0, ppanel_y + 145.0, 12.0, GRAY);
+    draw_text(&stats, ppanel_x + 8.0, ppanel_y + 145.0, 14.0, LIGHTGRAY);
 
     // Knight visor indicator
     if player.class == CharacterClass::Knight {
@@ -1234,7 +1371,7 @@ fn draw_combat(game: &Game) {
 
     // Enemy stats
     let estats = format!("STR:{} AGI:{}", cs.enemy.str, cs.enemy.agi);
-    draw_text(&estats, epanel_x + 8.0, epanel_y + 125.0, 12.0, GRAY);
+    draw_text(&estats, epanel_x + 8.0, epanel_y + 125.0, 13.0, LIGHTGRAY);
 
     // Parry circle visualization (center screen)
     if cs.phase == CombatPhase::ParryPhase {
@@ -1291,7 +1428,7 @@ fn draw_combat(game: &Game) {
     let msg_y = sh * 0.62;
     draw_text(&cs.message, sw * 0.5, msg_y, 16.0, LIGHTGRAY);
 
-    // Keep the log minimal — show last 2 lines
+    // Keep the log minimal -- show last 2 lines
     for (i, line) in cs.log.iter().rev().take(2).enumerate() {
         let alpha = 1.0 - i as f32 * 0.3;
         draw_text(

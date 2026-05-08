@@ -284,7 +284,7 @@ impl CombatState {
     pub fn execute_enemy_action(&mut self, player: &mut super::character::Character) {
         if self.enemy.stunned {
             self.enemy.stunned = false;
-            let msg = format!("{} is stunned — skips turn!", self.enemy.name);
+            let msg = format!("{} is stunned -- skips turn!", self.enemy.name);
             self.log.push(msg.clone());
             self.message = msg;
             self.phase = CombatPhase::PlayerTurn;

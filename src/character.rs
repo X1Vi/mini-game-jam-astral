@@ -25,6 +25,7 @@ impl CharacterClass {
         }
     }
 
+    #[allow(dead_code)]
     pub fn myth_origin(self) -> &'static str {
         match self {
             CharacterClass::Warrior => "From the Old English epic. A Geatish hero who defeated the monster Grendel with his bare hands.",
