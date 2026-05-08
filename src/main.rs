@@ -606,7 +606,7 @@ fn update_combat(game: &mut Game, dt: f32) {
                     let sw = screen_width();
                     let bw = sw * 0.18;
                     let bh = 42.0;
-                    let base_y = screen_height() - 70.0;
+                    let base_y = screen_height() - 85.0;
                     let gap = sw * 0.02;
                     let group_w = 4.0 * bw + 3.0 * gap;
                     let start_x = sw * 0.5 - group_w / 2.0;
@@ -618,6 +618,29 @@ fn update_combat(game: &mut Game, dt: f32) {
                             cs.selected_action = i;
                             acted = true;
                             break;
+                        }
+                    }
+                    // Also check flee button below
+                    if !acted {
+                        let flee_bw = bw * 0.5;
+                        let flee_x = sw * 0.5 - flee_bw / 2.0;
+                        let flee_y = base_y + bh + 6.0;
+                        if mouse_in_rect(flee_x, flee_y, flee_bw, 30.0)
+                            && is_mouse_button_pressed(MouseButton::Left)
+                        {
+                            let chance = ((player.agi as f32) / (cs.enemy.agi as f32 + 1.0))
+                                .min(0.85)
+                                .max(0.1);
+                            let roll = macroquad::rand::gen_range(0.0f32, 1.0f32);
+                            if roll < chance {
+                                cs.message = "Fled successfully!".into();
+                                cs.phase = CombatPhase::Victory;
+                                should_resolve = true;
+                            } else {
+                                cs.message = "Failed to flee! Enemy attacks!".into();
+                                cs.phase = CombatPhase::EnemyTurn;
+                            }
+                            acted = true;
                         }
                     }
                 }
@@ -1237,7 +1260,7 @@ fn draw_combat(game: &Game) {
     // Action buttons at bottom
     let bw = sw * 0.18;
     let bh = 42.0;
-    let base_y = sh - 60.0;
+    let base_y = sh - 85.0;
     let gap = sw * 0.02;
 
     let group_w = 4.0 * bw + 3.0 * gap;
@@ -1257,15 +1280,18 @@ fn draw_combat(game: &Game) {
         draw_btn(&label, bx, base_y, bw, bh, hover, color);
     }
 
-    let flee_x = start_x + group_w + gap;
+    // Flee button centered below actions
+    let flee_bw = bw * 0.5;
+    let flee_x = sw * 0.5 - flee_bw / 2.0;
+    let flee_y = base_y + bh + 6.0;
     let fhover =
-        cs.phase == CombatPhase::PlayerTurn && mouse_in_rect(flee_x, base_y, bw * 0.6, bh);
+        cs.phase == CombatPhase::PlayerTurn && mouse_in_rect(flee_x, flee_y, flee_bw, 30.0);
     draw_btn(
         "[F] Flee",
         flee_x,
-        base_y,
-        bw * 0.6,
-        bh,
+        flee_y,
+        flee_bw,
+        30.0,
         fhover,
         Color::new(0.3, 0.3, 0.3, 1.0),
     );

@@ -174,11 +174,11 @@ impl CombatState {
         let success_level = (1.0 - diff * 2.0).max(0.0);
         self.parry_success_level = success_level;
 
-        if success_level >= 0.7 && player.str >= 10 {
+        if success_level >= 0.7 {
             self.message = "Perfect Parry! Enemy is stunned!".into();
             self.log.push(self.message.clone());
             self.enemy.stunned = true;
-        } else if success_level >= 0.4 && player.str >= 10 {
+        } else if success_level >= 0.4 {
             self.message = "Good parry! Reduced damage taken.".into();
             self.log.push(self.message.clone());
             player.take_damage((self.pending_damage as f32 * 0.3) as i32);
