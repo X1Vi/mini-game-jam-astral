@@ -62,13 +62,30 @@ pub struct CombatState {
     pub log: Vec<String>,
 }
 
+pub fn action_names_for(class: super::character::CharacterClass) -> [&'static str; 4] {
+    match class {
+        super::character::CharacterClass::Warrior => {
+            ["Slash", "Charge", "Shield Bash", "Cleave"]
+        }
+        super::character::CharacterClass::Knight => {
+            ["Strike", "Taunt", "Shield Wall", "Vengeance"]
+        }
+        super::character::CharacterClass::Archer => {
+            ["Shoot", "Quick Shot", "Aimed Shot", "Evade"]
+        }
+        super::character::CharacterClass::Mage => {
+            ["Fireball", "Ice Bolt", "Arcane Surge", "Staff Strike"]
+        }
+    }
+}
+
 impl CombatState {
-    pub fn new(enemy: Enemy) -> Self {
+    pub fn new(enemy: Enemy, class: super::character::CharacterClass) -> Self {
         Self {
             enemy,
             phase: CombatPhase::PlayerTurn,
             selected_action: 0,
-            action_names: ["Attack", "Charge", "Lunge", "Fireball"],
+            action_names: action_names_for(class),
             pending_damage: 0,
             message: "Choose your action! (1-4)".into(),
             parry_timer: 0.0,
@@ -82,49 +99,186 @@ impl CombatState {
     }
 
     pub fn execute_player_action(&mut self, player: &mut super::character::Character) {
-        let result = match self.selected_action {
+        let result = match player.class {
+            super::character::CharacterClass::Warrior => self.warrior_action(player),
+            super::character::CharacterClass::Knight => self.knight_action(player),
+            super::character::CharacterClass::Archer => self.archer_action(player),
+            super::character::CharacterClass::Mage => self.mage_action(player),
+        };
+
+        if let Some(msg) = result {
+            self.log.push(msg.clone());
+            if !self.enemy.is_alive() {
+                self.message = format!("{} defeated!", self.enemy.name);
+                self.phase = CombatPhase::Victory;
+                return;
+            }
+            self.message = msg;
+            self.phase = CombatPhase::EnemyTurn;
+        }
+    }
+
+    fn warrior_action(&mut self, player: &mut super::character::Character) -> Option<String> {
+        match self.selected_action {
             0 => {
                 let dmg = player.attack_damage();
                 self.enemy.take_damage(dmg);
                 let extra = if player.charged { " (Charged!)" } else { "" };
                 player.charged = false;
-                format!("Attack deals {}{} damage!", dmg, extra)
+                Some(format!("Slash deals {}{} damage!", dmg, extra))
             }
             1 => {
                 player.charged = true;
-                "Power charged! Next attack deals 2x damage.".into()
+                Some("Power charged! Next attack deals 2x damage.".into())
             }
             2 => {
                 if !player.use_mana(10) {
-                    self.message = "Not enough mana for Lunge! (needs 10)".into();
-                    return;
+                    self.message = "Not enough stamina for Shield Bash! (needs 10)".into();
+                    return None;
                 }
-                let dmg = player.lunge_damage();
+                let dmg = player.str / 2 + 4;
                 self.enemy.take_damage(dmg);
-                format!("Lunge pierces for {} damage!", dmg)
+                self.enemy.stunned = true;
+                Some(format!("Shield Bash deals {} damage and stuns!", dmg))
             }
             3 => {
                 if !player.use_mana(15) {
-                    self.message = "Not enough mana for Fireball! (needs 15)".into();
-                    return;
+                    self.message = "Not enough stamina for Cleave! (needs 15)".into();
+                    return None;
                 }
-                let dmg = player.fireball_damage();
+                let dmg = (player.str as f32 / 2.0 * 1.5) as i32;
                 self.enemy.take_damage(dmg);
-                format!("Fireball scorches for {} damage!", dmg)
+                Some(format!("Cleave strikes for {} damage!", dmg))
             }
-            _ => "Unknown action.".into(),
-        };
-
-        self.log.push(result.clone());
-
-        if !self.enemy.is_alive() {
-            self.message = format!("{} defeated!", self.enemy.name);
-            self.phase = CombatPhase::Victory;
-            return;
+            _ => None,
         }
+    }
 
-        self.message = result;
-        self.phase = CombatPhase::EnemyTurn;
+    fn knight_action(&mut self, player: &mut super::character::Character) -> Option<String> {
+        match self.selected_action {
+            0 => {
+                let dmg = player.attack_damage();
+                self.enemy.take_damage(dmg);
+                let extra = if player.charged { " (Charged!)" } else { "" };
+                player.charged = false;
+                Some(format!("Strike deals {}{} damage!", dmg, extra))
+            }
+            1 => {
+                if !player.use_mana(8) {
+                    self.message = "Not enough stamina for Taunt! (needs 8)".into();
+                    return None;
+                }
+                let debuff = 3.min(self.enemy.str - 1);
+                self.enemy.str -= debuff;
+                self.enemy.stunned = true;
+                Some(format!("Taunt reduces enemy STR by {} and stuns!", debuff))
+            }
+            2 => {
+                if !player.use_mana(10) {
+                    self.message = "Not enough stamina for Shield Wall! (needs 10)".into();
+                    return None;
+                }
+                let heal = 15.min(player.max_hp - player.hp);
+                player.hp += heal;
+                Some(format!("Shield Wall restores {} HP!", heal))
+            }
+            3 => {
+                if !player.use_mana(12) {
+                    self.message = "Not enough stamina for Vengeance! (needs 12)".into();
+                    return None;
+                }
+                let bonus = if player.hp < player.max_hp / 2 { 8 } else { 3 };
+                let dmg = player.str / 2 + bonus;
+                self.enemy.take_damage(dmg);
+                Some(format!("Vengeance strikes for {} damage! ({})", dmg,
+                    if bonus > 3 { "empowered" } else { "normal" }))
+            }
+            _ => None,
+        }
+    }
+
+    fn archer_action(&mut self, player: &mut super::character::Character) -> Option<String> {
+        match self.selected_action {
+            0 => {
+                let dmg = player.str / 2 + player.agi / 4;
+                self.enemy.take_damage(dmg);
+                let extra = if player.charged { " (Charged!)" } else { "" };
+                player.charged = false;
+                Some(format!("Shoot deals {}{} damage!", dmg, extra))
+            }
+            1 => {
+                if !player.use_mana(8) {
+                    self.message = "Not enough stamina for Quick Shot! (needs 8)".into();
+                    return None;
+                }
+                let dmg = player.agi / 3;
+                self.enemy.take_damage(dmg);
+                self.enemy.take_damage(dmg);
+                Some(format!("Quick Shot hits twice for {} each!", dmg))
+            }
+            2 => {
+                if !player.use_mana(12) {
+                    self.message = "Not enough stamina for Aimed Shot! (needs 12)".into();
+                    return None;
+                }
+                let dmg = player.agi / 2 + 5;
+                self.enemy.take_damage(dmg);
+                Some(format!("Aimed Shot pierces for {} damage!", dmg))
+            }
+            3 => {
+                if !player.use_mana(5) {
+                    self.message = "Not enough stamina for Evade! (needs 5)".into();
+                    return None;
+                }
+                let boost = 8.min(40 - player.agi);
+                player.agi += boost;
+                Some(format!("Evade raises AGI by {} for this turn!", boost))
+            }
+            _ => None,
+        }
+    }
+
+    fn mage_action(&mut self, player: &mut super::character::Character) -> Option<String> {
+        match self.selected_action {
+            0 => {
+                if !player.use_mana(15) {
+                    self.message = "Not enough mana for Fireball! (needs 15)".into();
+                    return None;
+                }
+                let extra = if player.charged { 6 } else { 0 };
+                player.charged = false;
+                let dmg = player.int / 2 + 3 + extra;
+                self.enemy.take_damage(dmg);
+                Some(format!("Fireball scorches for {} damage!", dmg))
+            }
+            1 => {
+                if !player.use_mana(10) {
+                    self.message = "Not enough mana for Ice Bolt! (needs 10)".into();
+                    return None;
+                }
+                let dmg = player.int / 3 + 2;
+                self.enemy.take_damage(dmg);
+                let slow = 2.min(self.enemy.agi - 1);
+                self.enemy.agi -= slow;
+                Some(format!("Ice Bolt deals {} damage and slows by {}!", dmg, slow))
+            }
+            2 => {
+                if !player.use_mana(5) {
+                    self.message = "Not enough mana for Arcane Surge! (needs 5)".into();
+                    return None;
+                }
+                let restore = 20.min(player.max_mana - player.mana);
+                player.mana += restore;
+                player.charged = true;
+                Some(format!("Arcane Surge restores {} MP and charges next spell!", restore))
+            }
+            3 => {
+                let dmg = player.str / 2;
+                self.enemy.take_damage(dmg);
+                Some(format!("Staff Strike deals {} damage!", dmg))
+            }
+            _ => None,
+        }
     }
 
     pub fn execute_enemy_action(&mut self, player: &mut super::character::Character) {

@@ -15,6 +15,24 @@ impl CharacterClass {
             CharacterClass::Mage => "Mage",
         }
     }
+
+    pub fn myth_name(self) -> &'static str {
+        match self {
+            CharacterClass::Warrior => "Beowulf",
+            CharacterClass::Knight => "Gawain",
+            CharacterClass::Archer => "Arjuna",
+            CharacterClass::Mage => "Circe",
+        }
+    }
+
+    pub fn myth_origin(self) -> &'static str {
+        match self {
+            CharacterClass::Warrior => "From the Old English epic. A Geatish hero who defeated the monster Grendel with his bare hands.",
+            CharacterClass::Knight => "From Arthurian legend. A knight of the Round Table known for his honor, courage, and the Green Knight test.",
+            CharacterClass::Archer => "From the Hindu epic Mahabharata. A master archer and warrior prince who never missed his mark.",
+            CharacterClass::Mage => "From Homer's Odyssey. An enchantress skilled in potions and magic who turned men to beasts.",
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -132,14 +150,6 @@ impl Character {
         } else {
             base
         }
-    }
-
-    pub fn lunge_damage(&self) -> i32 {
-        self.str / 2 + 5
-    }
-
-    pub fn fireball_damage(&self) -> i32 {
-        self.int / 2 + 3
     }
 
     pub fn take_damage(&mut self, amount: i32) {

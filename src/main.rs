@@ -22,6 +22,7 @@ enum Scene {
     MainMenu,
     CharSelect,
     Wandering,
+    Paused,
     Combat,
     Inventory,
     Dialogue,
@@ -114,7 +115,8 @@ struct Game {
     inventory: Inventory,
     combat: Option<CombatState>,
     dialogue: Option<Dialogue>,
-    map: [[i32; MAP_W]; MAP_H],
+    maps: Vec<Vec<Vec<i32>>>,
+    current_map: usize,
     msg: String,
     msg_timer: f32,
     reason: String,
@@ -122,49 +124,74 @@ struct Game {
     sprites: SpriteStore,
 }
 
-fn gen_map() -> [[i32; MAP_W]; MAP_H] {
-    let mut m = [[0i32; MAP_W]; MAP_H];
-    for y in 0..MAP_H {
-        for x in 0..MAP_W {
-            if y == 0 || y == MAP_H - 1 || x == 0 || x == MAP_W - 1 {
-                m[y][x] = 1;
-            }
-        }
-    }
-    for y in 3..6 {
-        for x in 5..8 {
-            m[y][x] = 1;
-        }
-    }
-    for y in 9..12 {
-        for x in 14..17 {
-            m[y][x] = 1;
-        }
-    }
-    for y in 4..7 {
-        for x in 2..4 {
-            m[y][x] = 2;
-        }
-    }
-    for y in 11..14 {
-        for x in 8..10 {
-            m[y][x] = 2;
-        }
-    }
+fn add_wall_border(m: &mut Vec<Vec<i32>>) {
+    let h = m.len();
+    let w = m[0].len();
+    for x in 0..w { m[0][x] = 1; m[h-1][x] = 1; }
+    for y in 0..h { m[y][0] = 1; m[y][w-1] = 1; }
+}
+
+fn make_forest_map() -> Vec<Vec<i32>> {
+    // A forest clearing with trees, a pond, and open paths
+    let mut m = vec![vec![0i32; MAP_W]; MAP_H];
+    add_wall_border(&mut m);
+    // Tree cluster top-left
+    for y in 3..6 { for x in 5..8 { m[y][x] = 1; } }
+    // Tree cluster center-right
+    for y in 9..12 { for x in 14..17 { m[y][x] = 1; } }
+    // Pond
+    for y in 4..7 { for x in 2..4 { m[y][x] = 2; } }
+    for y in 11..14 { for x in 8..10 { m[y][x] = 2; } }
+    // Scattered trees
+    m[3][12] = 1; m[4][16] = 1; m[8][4] = 1;
+    m[13][15] = 1; m[14][3] = 1; m[6][18] = 1;
+    m[7][9] = 1; m[9][19] = 1; m[12][21] = 1;
     m
 }
 
-fn tile_solid(v: i32) -> bool {
-    v != 0
+fn make_frozen_map() -> Vec<Vec<i32>> {
+    // A frozen wasteland with ice walls and snow patches
+    let mut m = vec![vec![0i32; MAP_W]; MAP_H];
+    add_wall_border(&mut m);
+    // Ice wall labyrinth
+    for y in 3..5 { for x in 3..10 { m[y][x] = 1; } }
+    for y in 11..14 { for x in 4..8 { m[y][x] = 1; } }
+    for y in 7..10 { for x in 16..22 { m[y][x] = 1; } }
+    for y in 4..7 { for x in 18..20 { m[y][x] = 1; } }
+    // Frozen water pools
+    for y in 7..10 { for x in 6..9 { m[y][x] = 2; } }
+    for y in 13..16 { for x in 12..15 { m[y][x] = 2; } }
+    // Scattered ice pillars
+    m[3][21] = 1; m[6][3] = 1; m[10][15] = 1;
+    m[13][20] = 1; m[15][5] = 1; m[8][12] = 1;
+    m
 }
 
-fn collide_map(map: &[[i32; MAP_W]; MAP_H], x: f32, y: f32) -> bool {
+fn make_ruins_map() -> Vec<Vec<i32>> {
+    // Ancient ruins with maze-like walls and open courtyards
+    let mut m = vec![vec![0i32; MAP_W]; MAP_H];
+    add_wall_border(&mut m);
+    // Ruin walls forming chambers
+    for y in 3..6 { for x in 12..18 { m[y][x] = 1; } }
+    for y in 9..12 { for x in 3..7 { m[y][x] = 1; } }
+    for y in 6..10 { for x in 15..17 { m[y][x] = 1; } }
+    for y in 3..5 { for x in 5..8 { m[y][x] = 1; } }
+    // Broken pillars (scattered walls)
+    m[5][3] = 1; m[5][4] = 1; m[8][20] = 1; m[8][21] = 1;
+    m[12][18] = 1; m[12][19] = 1; m[14][15] = 1;
+    m[10][13] = 1; m[7][6] = 1; m[13][7] = 1;
+    // Water feature in courtyard
+    for y in 7..9 { for x in 9..12 { m[y][x] = 2; } }
+    m
+}
+
+fn collide_map(map: &[Vec<i32>], x: f32, y: f32) -> bool {
     let tx = (x / TILE) as usize;
     let ty = (y / TILE) as usize;
     if tx >= MAP_W || ty >= MAP_H {
         return true;
     }
-    tile_solid(map[ty][tx])
+    map[ty][tx] != 0
 }
 
 fn make_entities() -> Vec<WorldEntity> {
@@ -257,7 +284,8 @@ impl Game {
             inventory: Inventory::new(),
             combat: None,
             dialogue: None,
-            map: gen_map(),
+            maps: vec![make_forest_map(), make_frozen_map(), make_ruins_map()],
+            current_map: 0,
             msg: String::new(),
             msg_timer: 0.0,
             reason: String::new(),
@@ -281,7 +309,11 @@ impl Game {
     }
 
     fn start_combat(&mut self, enemy: Enemy) {
-        let mut cs = CombatState::new(enemy);
+        let class = self.player.as_ref().map_or(
+            character::CharacterClass::Warrior,
+            |p| p.class,
+        );
+        let mut cs = CombatState::new(enemy, class);
         cs.log.clear();
         self.msg = format!("A wild {} appears!", cs.enemy.name);
         self.msg_timer = 2.0;
@@ -451,7 +483,7 @@ fn update_wandering(game: &mut Game, dt: f32) {
     let ny = game.py + dy * step;
 
     let margin = 4.0;
-    let map_ref = &game.map;
+    let map_ref = &game.maps[game.current_map];
 
     let can_x = !collide_map(map_ref, nx + margin, game.py + margin)
         && !collide_map(map_ref, nx + TILE - margin, game.py + margin)
@@ -539,6 +571,39 @@ fn update_wandering(game: &mut Game, dt: f32) {
                 game.msg_timer = 1.5;
             }
         }
+    }
+
+    // Map edge transition
+    let tile_x = (game.px / TILE) as usize;
+    if tile_x >= MAP_W - 2 && game.current_map + 1 < game.maps.len()
+        && is_key_pressed(KeyCode::M)
+    {
+        game.current_map += 1;
+        game.px = 2.0 * TILE;
+        game.py = 9.0 * TILE;
+        game.msg = format!("Entering area {}", game.current_map + 1);
+        game.msg_timer = 1.5;
+    } else if tile_x <= 1 && game.current_map > 0
+        && is_key_pressed(KeyCode::M)
+    {
+        game.current_map -= 1;
+        game.px = (MAP_W - 3) as f32 * TILE;
+        game.py = 9.0 * TILE;
+        game.msg = format!("Entering area {}", game.current_map + 1);
+        game.msg_timer = 1.5;
+    }
+
+    // Pause
+    if is_key_pressed(KeyCode::Escape) {
+        game.scene = Scene::Paused;
+    }
+}
+
+fn update_pause(game: &mut Game) {
+    if is_key_pressed(KeyCode::Escape) || is_key_pressed(KeyCode::Key1) {
+        game.scene = Scene::Wandering;
+    } else if is_key_pressed(KeyCode::Key2) {
+        game.scene = Scene::MainMenu;
     }
 }
 
@@ -755,7 +820,7 @@ fn update_game_over(game: &mut Game) {
         game.inventory = Inventory::new();
         game.combat = None;
         game.dialogue = None;
-        game.map = gen_map();
+        game.current_map = 0;
         game.msg = String::new();
         game.msg_timer = 0.0;
         game.reason = String::new();
@@ -829,43 +894,17 @@ fn draw_char_select(game: &Game) {
     let sw = screen_width();
     let sh = screen_height();
     let classes = [
-        (
-            CharacterClass::Warrior,
-            "Warrior",
-            "High STR & VIT. Shield user.",
-            0.15,
-            0.25,
-            RED,
-        ),
-        (
-            CharacterClass::Knight,
-            "Knight",
-            "High VIT. Toggle visor (V).",
-            0.55,
-            0.25,
-            Color::new(0.7, 0.7, 0.8, 1.0),
-        ),
-        (
-            CharacterClass::Archer,
-            "Archer",
-            "High AGI. Dodges often.",
-            0.15,
-            0.55,
-            GREEN,
-        ),
-        (
-            CharacterClass::Mage,
-            "Mage",
-            "High INT. Devastating spells.",
-            0.55,
-            0.55,
-            BLUE,
-        ),
+        (CharacterClass::Warrior, 0.15, 0.25),
+        (CharacterClass::Knight, 0.55, 0.25),
+        (CharacterClass::Archer, 0.15, 0.55),
+        (CharacterClass::Mage, 0.55, 0.55),
     ];
+    let colors = [RED, Color::new(0.7, 0.7, 0.8, 1.0), GREEN, BLUE];
 
     draw_text("Choose Your Champion", sw * 0.22, sh * 0.10, 34.0, GOLD);
 
-    for (cc, name, desc, rx, ry, col) in &classes {
+    for (i, (cc, rx, ry)) in classes.iter().enumerate() {
+        let col = colors[i];
         let bw = sw * 0.35;
         let bh = sh * 0.25;
         let bx = sw * rx;
@@ -880,8 +919,11 @@ fn draw_char_select(game: &Game) {
         draw_rectangle(bx, by, bw, bh, bg);
         draw_rectangle_lines(bx, by, bw, bh, 2.0, if hover { WHITE } else { GRAY });
 
-        draw_text(name, bx + 12.0, by + 28.0, 26.0, *col);
-        draw_text(desc, bx + 12.0, by + 56.0, 15.0, LIGHTGRAY);
+        let mname = cc.myth_name();
+        draw_text(mname, bx + 12.0, by + 24.0, 26.0, col);
+        let desc = format!("{} ({})", cc.class_name(), cc.myth_name());
+        draw_text(&desc, bx + 12.0, by + 44.0, 14.0, LIGHTGRAY);
+        draw_text(cc.myth_origin(), bx + 12.0, by + 62.0, 11.0, GRAY);
 
         let char_tex = match cc {
             CharacterClass::Warrior => &game.sprites.char_warrior,
@@ -916,7 +958,7 @@ fn draw_wandering(game: &Game) {
 
     for ty in start_ty..=end_ty.min(MAP_H - 1) {
         for tx in start_tx..=end_tx.min(MAP_W - 1) {
-            let v = game.map[ty][tx];
+            let v = game.maps[game.current_map][ty][tx];
             let sx = tx as f32 * TILE - game.cam_x;
             let sy = ty as f32 * TILE - game.cam_y;
             // Always draw grass floor, then overlay tree/building on top
@@ -1038,7 +1080,7 @@ fn draw_wandering(game: &Game) {
     }
 
     draw_text(
-        "[WASD] move  [E] interact  [I] inventory  [V] visor",
+        "[WASD] move  [E] interact  [I] inventory  [V] visor  [ESC] pause  [M] switch area",
         8.0,
         sh - 16.0,
         14.0,
@@ -1137,8 +1179,12 @@ fn draw_combat(game: &Game) {
         ppanel_x + 8.0, ppanel_y + 95.0, ppanel_w - 16.0, 18.0, RED,
     );
     // Mana bar
+    let mana_label = match player.class {
+        CharacterClass::Mage => "MP",
+        _ => "ST",
+    };
     draw_bar(
-        "MP", player.mana, player.max_mana,
+        mana_label, player.mana, player.max_mana,
         ppanel_x + 8.0, ppanel_y + 118.0, ppanel_w - 16.0, 14.0, BLUE,
     );
 
@@ -1377,6 +1423,29 @@ fn draw_dialogue_scene(game: &Game) {
     }
 }
 
+fn draw_pause(_game: &Game) {
+    let sw = screen_width();
+    let sh = screen_height();
+    draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.0, 0.0, 0.0, 0.7));
+    draw_rectangle_lines(sw * 0.3, sh * 0.3, sw * 0.4, sh * 0.4, 2.0, GOLD);
+
+    let title = "PAUSED";
+    let tw = measure_text(title, None, 42, 1.0).width;
+    draw_text(title, sw * 0.5 - tw / 2.0, sh * 0.40, 42.0, GOLD);
+
+    let r1 = "[1] Resume";
+    let r1w = measure_text(r1, None, 24, 1.0).width;
+    draw_text(r1, sw * 0.5 - r1w / 2.0, sh * 0.52, 24.0, WHITE);
+
+    let r2 = "[2] Main Menu";
+    let r2w = measure_text(r2, None, 24, 1.0).width;
+    draw_text(r2, sw * 0.5 - r2w / 2.0, sh * 0.58, 24.0, Color::new(0.8, 0.4, 0.4, 1.0));
+
+    let hint = "ESC to resume";
+    let hw = measure_text(hint, None, 14, 1.0).width;
+    draw_text(hint, sw * 0.5 - hw / 2.0, sh * 0.68, 14.0, GRAY);
+}
+
 fn draw_game_over(game: &Game) {
     let sw = screen_width();
     let sh = screen_height();
@@ -1400,6 +1469,7 @@ async fn main() {
             Scene::MainMenu => update_main_menu(&mut game),
             Scene::CharSelect => update_char_select(&mut game),
             Scene::Wandering => update_wandering(&mut game, dt),
+            Scene::Paused => update_pause(&mut game),
             Scene::Combat => update_combat(&mut game, dt),
             Scene::Inventory => update_inventory(&mut game),
             Scene::Dialogue => update_dialogue(&mut game),
@@ -1413,6 +1483,10 @@ async fn main() {
             Scene::MainMenu => draw_main_menu(&game),
             Scene::CharSelect => draw_char_select(&game),
             Scene::Wandering => draw_wandering(&game),
+            Scene::Paused => {
+                draw_wandering(&game);
+                draw_pause(&game);
+            }
             Scene::Combat => draw_combat(&game),
             Scene::Inventory => draw_inventory_scene(&game),
             Scene::Dialogue => draw_dialogue_scene(&game),
