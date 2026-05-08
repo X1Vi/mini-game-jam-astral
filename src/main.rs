@@ -247,6 +247,20 @@ impl Game {
     }
 }
 
+fn draw_circle(x: f32, y: f32, radius: f32, color: Color) {
+    // Draw circle using many small rectangles
+    let segments = 32;
+    for i in 0..segments {
+        let angle1 = (i as f32 / segments as f32) * 2.0 * std::f32::consts::PI;
+        let angle2 = ((i + 1) as f32 / segments as f32) * 2.0 * std::f32::consts::PI;
+        let x1 = x + radius * angle1.cos();
+        let y1 = y + radius * angle1.sin();
+        let x2 = x + radius * angle2.cos();
+        let y2 = y + radius * angle2.sin();
+        draw_rectangle(x1, y1, (x2 - x1).abs(), (y2 - y1).abs(), color);
+    }
+}
+
 fn clamp_cam(cam: f32, screen: f32, map_px: f32) -> f32 {
     cam.clamp(0.0, (map_px - screen).max(0.0))
 }
@@ -429,7 +443,13 @@ fn update_wandering(game: &mut Game, dt: f32) {
                 return;
             }
             if let Some(did) = npc_data {
-                game.dialogue = Some(generic_dialogue(did));
+                if let Some(ref player) = game.player {
+                    let char_name = player.class.class_name();
+                    let char_dialogue = dialogue::character_specific_dialogue(char_name, did);
+                    game.dialogue = Some(char_dialogue);
+                } else {
+                    game.dialogue = Some(generic_dialogue(did));
+                }
                 game.scene = Scene::Dialogue;
                 return;
             }
@@ -549,14 +569,15 @@ fn update_combat(game: &mut Game, dt: f32) {
 
             CombatPhase::ParryPhase => {
                 cs.parry_timer += dt;
+                cs.parry_ratio = (cs.parry_timer / PARRY_TIMEOUT).min(1.0);
+
                 if is_key_pressed(KeyCode::Space) {
                     cs.attempt_parry(player);
                     if !player.is_alive() {
                         cs.phase = CombatPhase::Defeat;
                         should_resolve = true;
                     }
-                }
-                if cs.parry_timer > PARRY_TIMEOUT {
+                } else if cs.parry_timer > PARRY_TIMEOUT {
                     cs.parry_expired(player);
                     if !player.is_alive() {
                         cs.phase = CombatPhase::Defeat;
@@ -636,16 +657,35 @@ fn update_game_over(game: &mut Game) {
 fn draw_main_menu(_game: &Game) {
     let sw = screen_width();
     let sh = screen_height();
-    draw_text("ASTRAL LEGENDS", sw * 0.18, sh * 0.30, 56.0, GOLD);
-    draw_text("A turn‑based UI RPG", sw * 0.28, sh * 0.38, 20.0, GRAY);
-    draw_text("Press ENTER to begin", sw * 0.30, sh * 0.52, 24.0, WHITE);
-    draw_text(
-        "Myths. Magic. Steel.",
-        sw * 0.32,
-        sh * 0.80,
-        18.0,
-        Color::new(0.6, 0.5, 0.7, 1.0),
-    );
+
+    // Background
+    draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.04, 0.02, 0.08, 1.0));
+
+    // Top decorative line
+    draw_rectangle(sw * 0.3 - 80.0, 0.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
+    draw_rectangle(sw * 0.3 - 80.0, sh - 3.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
+
+    // Main title - centered
+    draw_text("ASTRAL LEGENDS", sw * 0.7, sh * 0.25, 48.0, GOLD);
+    
+    // Subtitle - centered
+    draw_text("A Turn-Based UI RPG", sw * 0.7, sh * 0.32, 18.0, LIGHTGRAY);
+
+    // Decorative line under title - centered
+    draw_rectangle(sw * 0.7 - 60.0, sh * 0.36, 120.0, 2.0, Color::new(0.6, 0.5, 0.8, 1.0));
+
+    // Start instruction - centered
+    draw_text("Press ENTER to begin", sw * 0.7, sh * 0.48, 24.0, WHITE);
+    draw_text("Press SPACE to begin", sw * 0.7, sh * 0.52, 16.0, GRAY);
+
+    // Tagline - centered
+    draw_text("Myths. Magic. Steel.", sw * 0.7, sh * 0.70, 18.0, Color::new(0.7, 0.6, 0.7, 1.0));
+
+    // Footer line - centered
+    draw_rectangle(sw * 0.7 - 50.0, sh * 0.85, 100.0, 1.0, Color::new(0.5, 0.4, 0.6, 1.0));
+
+    // Version info - centered
+    draw_text("Astral Legends v0.1.0", sw * 0.7, sh * 0.92, 12.0, GRAY);
 }
 
 fn draw_char_select(game: &Game) {
@@ -763,8 +803,14 @@ fn draw_wandering(game: &Game) {
                 draw_rectangle(sx, sy, TILE, TILE, YELLOW);
                 draw_rectangle_lines(sx, sy, TILE, TILE, 1.5, Color::new(0.8, 0.8, 0.1, 1.0));
             }
-            EntityKind::Pickup(_, _) => {
+            EntityKind::Pickup(item, _) => {
                 draw_rectangle(sx + 8.0, sy + 8.0, 16.0, 16.0, SKYBLUE);
+                let label = match item.category {
+                    inventory::ItemCategory::Consumable => "POTION",
+                    inventory::ItemCategory::Material => "HERB",
+                    inventory::ItemCategory::Equipment => "ITEM",
+                };
+                draw_text(label, sx, sy - 10.0, 10.0, YELLOW);
             }
         }
     }
@@ -865,20 +911,63 @@ fn draw_combat(game: &Game) {
     draw_rectangle_lines(sw * 0.25, 80.0, sw * 0.5, 140.0, 2.0, DARKGRAY);
     draw_text(&cs.enemy.name, sw * 0.35, 130.0, 28.0, ORANGE);
 
+    // Parry circle visualization
     if cs.phase == CombatPhase::ParryPhase {
+        let cx = sw * 0.5;
+        let cy = 220.0;
+        let max_radius = 60.0;
+        let min_radius = 20.0;
+
+        // Calculate current radius based on timer
+        let current_radius = if cs.parry_ratio > cs.parry_target {
+            // Shrinking phase
+            let progress = cs.parry_timer / (PARRY_TIMEOUT * 0.5);
+            let target_radius = max_radius * cs.parry_target;
+            max_radius - (max_radius - target_radius) * progress
+        } else {
+            // Growing phase (after passing target)
+            let progress = (cs.parry_timer - PARRY_TIMEOUT * 0.5) / (PARRY_TIMEOUT * 0.5);
+            let target_radius = max_radius * cs.parry_target;
+            target_radius + (min_radius - target_radius) * progress
+        };
+
+        let clamped_radius = current_radius.clamp(min_radius, max_radius);
+
+        // Draw outer circle (target zone)
+        let target_radius = max_radius * cs.parry_target;
+        let target_color = Color::new(0.3, 0.3, 0.3, 1.0);
+        draw_circle(cx, cy, target_radius, target_color);
+        draw_circle_lines(cx, cy, target_radius, 2.0, WHITE);
+
+        // Draw inner circle (perfect parry zone)
+        let perfect_radius = target_radius * 0.4;
+        let perfect_color = Color::new(0.6, 0.6, 0.0, 0.3);
+        draw_circle(cx, cy, perfect_radius, perfect_color);
+        draw_circle_lines(cx, cy, perfect_radius, 1.5, GOLD);
+
+        // Draw current player circle
+        let player_color = if cs.parry_ratio >= cs.parry_target {
+            Color::new(0.2, 0.8, 0.2, 1.0)
+        } else {
+            Color::new(0.8, 0.2, 0.2, 1.0)
+        };
+        draw_circle(cx, cy, clamped_radius, player_color);
+        draw_circle_lines(cx, cy, clamped_radius, 2.0, WHITE);
+
+        // Success level indicator
+        let success_text = format!("Parry: {:.0}%", (cs.parry_success_level * 100.0) as i32);
+        draw_text(
+            &success_text,
+            cx - measure_text(&success_text, None, 16, 1.0).width / 2.0,
+            cy + max_radius + 25.0,
+            16.0,
+            WHITE,
+        );
+
+        // Instruction text
         let urgency = (cs.parry_timer / PARRY_TIMEOUT).min(1.0);
         let col = Color::new(1.0, 1.0 - urgency, 0.0, 1.0);
-        draw_text("[ PARRY! ]  Press SPACE", sw * 0.22, 280.0, 28.0, col);
-        draw_bar(
-            "",
-            (PARRY_TIMEOUT - cs.parry_timer) as i32,
-            PARRY_TIMEOUT as i32,
-            sw * 0.3,
-            310.0,
-            sw * 0.4,
-            10.0,
-            col,
-        );
+        draw_text("[ SPACE ] Parry!", cx, cy + max_radius + 50.0, 20.0, col);
     }
 
     let bw = sw * 0.18;

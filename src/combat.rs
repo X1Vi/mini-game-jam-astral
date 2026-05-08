@@ -55,6 +55,9 @@ pub struct CombatState {
     pub message: String,
     pub parry_timer: f32,
     pub parry_window: bool,
+    pub parry_target: f32,
+    pub parry_ratio: f32,
+    pub parry_success_level: f32,
     pub turn_count: u32,
     pub log: Vec<String>,
 }
@@ -70,6 +73,9 @@ impl CombatState {
             message: "Choose your action! (1-4)".into(),
             parry_timer: 0.0,
             parry_window: false,
+            parry_target: 0.5,
+            parry_ratio: 0.0,
+            parry_success_level: 0.0,
             turn_count: 0,
             log: Vec::new(),
         }
@@ -148,9 +154,12 @@ impl CombatState {
         }
         self.parry_timer = 0.0;
         self.parry_window = true;
+        self.parry_target = macroquad::rand::gen_range(0.3f32, 0.7f32);
+        self.parry_ratio = 0.0;
+        self.parry_success_level = 0.0;
         self.message = format!(
-            "{} swings for {} dmg! [SPACE] to parry!",
-            self.enemy.name, self.pending_damage
+            "{} attacks! Watch the circle and press SPACE at the right time!",
+            self.enemy.name
         );
         self.phase = CombatPhase::ParryPhase;
     }
@@ -161,16 +170,22 @@ impl CombatState {
         }
         self.parry_window = false;
 
-        if player.str >= 10 && self.parry_timer < 0.45 {
-            let msg: String = "Perfect parry! Enemy is stunned!".into();
-            self.log.push(msg.clone());
-            self.message = msg;
+        let diff = (self.parry_ratio - self.parry_target).abs();
+        let success_level = (1.0 - diff * 2.0).max(0.0);
+        self.parry_success_level = success_level;
+
+        if success_level >= 0.7 && player.str >= 10 {
+            self.message = "Perfect Parry! Enemy is stunned!".into();
+            self.log.push(self.message.clone());
             self.enemy.stunned = true;
+        } else if success_level >= 0.4 && player.str >= 10 {
+            self.message = "Good parry! Reduced damage taken.".into();
+            self.log.push(self.message.clone());
+            player.take_damage((self.pending_damage as f32 * 0.3) as i32);
         } else {
             player.take_damage(self.pending_damage);
-            let msg = format!("Parry failed! Took {} damage.", self.pending_damage);
-            self.log.push(msg.clone());
-            self.message = msg;
+            self.message = format!("Parry failed! Took {} damage.", self.pending_damage);
+            self.log.push(self.message.clone());
         }
 
         if !player.is_alive() {
