@@ -1,0 +1,595 @@
+<!DOCTYPE HTML><html lang="en"><head><meta charset="UTF-8"/><META name="GENERATOR" content="IBM HomePage Builder 2001 V5.0.0 for Windows"><meta name="msvalidate.01" content="3BB4D18369B9C21326AF7A99FCCC5A09" /><meta property="fb:app_id" content="537395183072744" /><title>Mini Jam 210: Astral - itch.io</title><meta name="csrf_token" value="WyJreGJWIiwxNzc4MjQ2MTgxLCJiVmJoVlF4OUd4SjAwY2wiXQ==.6A6FJI87nHI3JbdNN4rp98UuSTY=" /><meta content="Mini Jam 210: Astral" property="og:title"/><meta content="itch.io" property="og:site_name"/><meta content="4503599627724030" property="twitter:account_id"/><link rel="manifest" href="/static/manifest.json"/><script type="application/ld+json">{"itemListElement":[{"@type":"ListItem","position":1,"item":{"name":"Jams","@id":"https:\/\/itch.io\/jams"}}],"@context":"http:\/\/schema.org","@type":"BreadcrumbList"}</script><meta content="summary_large_image" name="twitter:card"/><meta content="https://img.itch.zone/aW1nLzI2OTc5MzA3LmdpZg==/original/8StGZb.gif" property="twitter:image"/><meta content="@itchio" name="twitter:site"/><meta content="Mini Jam 210: Astral" name="twitter:title"/><meta content="A game jam from 2026-05-08 to 2026-05-15 hosted by ZahranW. What is Mini Jam? Mini jam is a 72-hour-long game development jam that occurs every two weeks on Itch.io. The main focus of this jam is the mandatory..." name="twitter:description"/><meta content="A game jam from 2026-05-08 to 2026-05-15 hosted by ZahranW. What is Mini Jam? Mini jam is a 72-hour-long game development jam that occurs every two weeks on Itch.io. The main focus of this jam is the mandatory..." property="og:description"/><meta content="A game jam from 2026-05-08 to 2026-05-15 hosted by ZahranW. What is Mini Jam? Mini jam is a 72-hour-long game development jam that occurs every two weeks on Itch.io. The main focus of this jam is the mandatory..." name="description"/><meta content="width=device-width, initial-scale=1" name="viewport"/><meta content="#FA5C5C" name="theme-color"/><meta content="https://img.itch.zone/aW1nLzI2OTc5MzA3LmdpZg==/original/8StGZb.gif" property="og:image"/><link href="https://static.itch.io/jam.css?1778200037" rel="stylesheet"/><script type="text/javascript">window.itchio_translations_url = 'https://static.itch.io/translations';</script><script src="https://static.itch.io/lib.min.js?1778200037" type="text/javascript"></script><script src="https://static.itch.io/bundle.min.js?1778200037" type="text/javascript"></script><script data-src="https://static.itch.io/react.min.js?1778200037" id="lib_react_src"></script><script src="https://static.itch.io/jam.min.js?1778200037" type="text/javascript"></script><script type="text/javascript">I.current_user = null;</script><script type="text/javascript">if (!window.location.hostname.match(/localhost/)) {      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', "G-36R7NPBMLS", {});
+      (function(d, t, s, m) {
+        s = d.createElement(t);
+        s.src = "https:\/\/www.googletagmanager.com\/gtag\/js?id=G-36R7NPBMLS";
+        s.async = 1;
+        m = d.getElementsByTagName(t)[0];
+        m.parentNode.insertBefore(s, m);
+      })(document, "script");
+      }</script><style type="text/css" id="jam_theme">:root {
+    --itchio_ui_bg: #2b2932;
+}
+
+body {
+  color: #0B0330;
+  background-color: #0B0330;
+  background-image: url('https://img.itch.zone/aW1hZ2UyL2phbS80MTYyMTIvMjY5NzkyODMucG5n/original/EwaC6Q.png'); background-repeat: repeat-x; background-position: 50% 0%
+}
+
+.view_jam_page a, .view_jam_page .game_grid_widget .game_cell .game_title a.title {
+  color: #F02861;
+}
+
+.view_jam_page .jam_body,
+.view_jam_page .grid_outer {
+  background-color: #ffffff;
+}
+
+.view_jam_page .jam_body {
+  box-shadow: 0 0 0 2px transparent;
+}
+
+.view_jam_page .stats_container a:hover {
+  color: #F02861;
+}
+
+.view_jam_page .button {
+  background-color: #F02861;
+  color: #ffffff;
+  text-shadow: 0 1px 0px #e01851;
+  border-color: #e01851;
+}
+
+
+.view_jam_page .button:hover {
+  background-color: #f72f68 !important;
+}
+
+.view_jam_page .button:active {
+  background-color: #ea225b !important;
+}
+
+.view_jam_page .jam_submitter_widget,
+.view_jam_page .jam_header_widget,
+.view_jam_page .jam_header_widget .stat_box
+{
+  border-color: #e5e5e5;
+}
+
+.view_jam_page .formatted hr {
+  background-color: #e5e5e5;
+}
+
+.view_jam_page .grid_outer .itch_footer {
+  border-top: 1px solid #d9d9d9 !important;
+  background-color: #e5e5e5;
+}
+
+.view_jam_page .grid_outer .header_row {
+  border-color: #e5e5e5;
+}
+
+.view_jam_page .game_grid_widget .game_cell .game_text,
+.view_jam_page .grid_outer .game_count,
+.view_jam_page .grid_outer .footer_submissions {
+  color: #666666 !important;
+}
+
+.view_jam_page .game_grid_widget .game_cell .game_platform,
+.view_jam_page .game_grid_widget .game_cell .game_genre,
+.view_jam_page .game_grid_widget .game_cell .game_author a,
+.view_jam_page .grid_outer .powerd_by {
+  color: #8c8c8c !important;
+}
+
+.view_jam_page .jam_filter_picker {
+  border-color: #e5e5e5 !important;
+}
+
+.view_jam_page .header_tabs .header_tab.active,
+.view_jam_page .header_tabs .header_tab:hover {
+  border-color: #F02861;
+}
+
+.view_jam_page .header_tabs .community_activity {
+  background-color: #e5e5e5;
+  color: #0B0330;
+}
+
+.view_jam_page .jam_filter_picker .filter_item {
+  color: #8c8c8c !important;
+}
+
+.view_jam_page .jam_filter_picker .filter_item:hover,
+.view_jam_page .jam_filter_picker .filter_item.active
+{
+  color: #666666 !important;
+  border-color: #F02861 !important;
+}
+
+.view_jam_page .jam_filter_picker .divider {
+  color: #666666;
+}
+
+:root{
+--dark-color:#0B0330;
+--med-dark-color:#F02861;
+--med-darker-color:rgba(0,0,0,0.0);
+--med-light-color:#F02861;
+--light2-color:#fff;
+--light-color:#0B0330;
+--info-text:"";
+}
+.header_widget.gray .primary_header{
+--background: rgba(0,0,0,0.5);
+background:#0B0330;
+box-shadow: none;}
+
+.user_panel_widget .profile_avatar, .user_panel_widget .drop_menu{
+}
+
+
+@keyframes animbg{
+0% {background-position: 0px 0px;}
+100% {background-position: 256px 512px;}}
+
+
+.view_jam_page .jam_body{margin-bottom:20px;}
+.view_jam_page .jam_body {
+    box-shadow: 0px 0px 0 0px #808080;
+}
+
+
+.jam_banner_outer::after{
+content: ' ';
+background: center;
+position:relative;
+display:block;
+margin:auto;
+overflow:visible;
+margin-top:-352px;
+height:352px;
+width: 100%;
+background-image: url(
+);
+image-rendering: pixelated;
+z-index: 2 !important;
+background-repeat:no-repeat;
+}
+
+
+.view_jam_page .jam_submitter_widget .countdown::after{
+float:right;
+content:var(--info-text);
+white-space: pre; /* or pre-wrap */
+padding-right:10px;
+padding-left:20px;
+}
+
+.view_jam_page .jam_header_widget .jam_title_header a{
+margin-bottom: 0px;
+}
+
+
+.view_jam_page .jam_banner{
+max-width:100%!important;
+z-index:-5;
+margin-bottom:0px;
+margin-top: 0px;
+}
+.custom-header-parent {
+top:50px;
+left:0;
+width:100%;
+position:absolute;
+}
+
+
+.view_jam_page .jam_header_widget .jam_host_header{
+margin-bottom: 0px;
+margin-top:0px;
+padding-bottom:0px;
+}
+
+
+.view_jam_page .jam_header_widget {
+
+border-radius:16px 16px 0 0;
+border-bottom: none!important;
+margin-top:0px;
+padding:16px;
+margin-left: 20px;
+margin-right: 20px;
+  --box-shadow: -8px 0px 0px 0px var(--med-dark-color);
+    background-color: var(--med-darker-color);
+--background: rgba(255,255,255,0.9);
+color:var(--light-color);
+text-align:center;
+background:var(--light2-color);
+}
+
+
+.view_jam_page .header_tabs {
+
+margin-top:120px;
+text-align:center;
+font-size: 18px;
+white-space: pre-wrap;
+animation:none !important;
+--box-shadow: -8px 0px 0px 0px var(--med-dark-color);
+--background: rgba(255,255,255,0.9);
+--color:var(--dark-color) !important;
+}
+
+
+.jam_body {
+margin-top:0px !important;
+background-color: transparent!important;
+font-weight:300;
+border-radius:16px;
+padding:0px;
+}
+
+
+.jam_submitter_widget{
+
+text-align:center;
+border-color: transparent!important;
+background-color: var(--med-darker-color);
+padding: 20px;
+border-radius: 0 0 16px 16px;
+--box-shadow: -8px 0px 0px 0px var(--med-dark-color);
+margin-left:20px;
+margin-right:20px;
+display: block;
+padding-top:0px;
+padding-bottom:10px;
+background:var(--light2-color);
+}
+
+.jam_header_widget .stats_container{
+    margin-top: 90px;
+  position: absolute; 
+  left: 0; 
+  right: 0; 
+  margin-left: auto;
+  margin-right: auto; 
+  width: 50%;
+  overflow: auto;
+}
+
+.jam_header_widget .stat_box{
+margin:8px !important;
+}
+
+.jam_submitter_widget .date_data{
+margin:0px;
+text-align:center;
+}
+
+.jam_submitter_widget .countdown{
+
+padding:0px;
+}
+
+
+.view_jam_page .submitter_outer{
+
+margin-top:0px;
+
+}
+
+
+.view_jam_page .jam_content{
+border-radius:0 0 0 0;
+--background-color: var(--med-dark-color);
+--box-shadow: -8px 0px 0px 0px var(--med-dark-color);
+}
+
+.view_jam_page h2{
+color:var(--light-color);
+--animation: anim 5s linear infinite;
+padding:5px;
+font-weight:600;
+text-align:center;
+    font-size: 3em !important;
+}
+
+
+.jam_submitter_widget .state_action .button{
+transition: transform 0.2s ease-in-out;
+transform: translate(0px,0px);
+border-radius:100px;
+border:2px solid;
+color:var(--light2-color);
+background:var(--light-color)!important;
+border-color: var(--light-color) !important;
+text-shadow: none;}
+.jam_submitter_widget .state_action .button:hover{
+transition: transform 0.2s ease-in-out;
+transform: translate(0px,-4px);
+color:var(--light-color);
+background:var(--light2-color)!important;
+border-color: var(--med-dark-color) !important;
+}
+.submitter_button::after, .join_jam_btn::after {content: "!";}
+
+a{
+text-decoration:none;
+--animation: anim 5s linear infinite;
+
+}
+.view_jam_page .jam_header_widget .jam_title_header a, .header_tabs a{
+animation: none !important;
+}
+
+
+.view_jam_page .jam_content a, .view_jam_page .jam_header_widget .jam_host_header a{font-weight:bold;
+border-bottom: 2px solid var(--med-dark-color);
+
+}
+.view_jam_page .jam_content a:hover ,.view_jam_page .jam_header_widget .jam_host_header a:hover{
+border-bottom: 2px solid var(--dark-color);
+color:var(--dark-color);
+
+}
+
+
+
+p{
+line-height:20px;
+}
+
+
+.user_formatted img{
+background-color:var(--med-dark-color);
+padding-left:16px;
+padding-right:16px;
+
+
+}
+
+del{
+text-decoration:none;
+color:var(--med-dark-color);
+font-weight:bold;
+}
+
+u{
+color:var(--light-color);
+text-decoration:none;
+color:var(--light2-color);
+background: var(--light-color);
+padding:0px 6px 2px 6px;
+border-radius:30px;
+}
+
+.view_jam_page .header_tabs .community_activity{
+
+background-color: rgba(0,0,0,0.0)!important;
+}
+
+
+
+.view_jam_page .jam_body a[target=_button]{
+color:var(--light2-color);
+background:var(--light-color);
+    border: 2px solid var(--light-color);
+border-radius:100px;
+padding:8px;
+}
+
+.view_jam_page .jam_body a[target=_button]:hover{
+color:var(--light-color);
+background:var(--light2-color);
+    border: 2px solid var(--med-dark-color);
+}
+
+.jam_body h2{
+font-size:2em;
+}
+.jam_body p{
+font-size:1.1em;
+}
+
+
+.custom-section-faq summary{
+font-size:1.1em;
+font-weight:bold;
+margin:8px;
+}
+
+.custom-section-faq details p{
+margin:1% 5% 2.5% 5%;
+padding:4px;
+border-bottom: 2px solid var(--dark-color);
+
+}
+.jam_body{
+overflow:hidden;
+margin-bottom:64px !important;
+}
+
+.custom-section.custom-heart{
+display:none;
+}
+
+.view_jam_page::after{
+content:" ";
+width:32px;
+height:48px;
+position:static;
+display:block;
+margin:auto;
+overflow:visible;
+background:url(https://img.itch.zone/aW1nLzE3NTc4MjY0LnBuZw==/original/q329%2BU.png);
+margin-top:-48px;
+background-repeat:no-repeat;
+}
+
+
+.custom_backing{
+display:none;
+top:10px;
+}
+
+blockquote {
+margin:10px;
+padding:8px;
+box-shadow: -3px 0px 0px 0px var(--med-dark-color);
+}
+
+body{
+background-position-y: 50px;
+image-rendering: pixelated;
+
+}
+
+
+.custom-section{
+width:inherit;
+margin-top:2em;
+padding:32px;
+padding-top:1px;
+padding-bottom:16px;
+border-radius:16px;
+background:var(--light2-color)}
+
+.custom-section-limitation{
+}
+
+
+
+.custom-section-rules{
+background:var(--light2-color);
+}
+
+.custom-rules{
+list-style-type:none;
+padding-inline-start:0px;
+
+}
+
+
+.custom-rules li{
+background:#FFD7E4;
+padding:16px;
+border-radius:16px;
+width:85%;
+margin:auto;
+margin-top:16px;
+font-size:1.1em;
+display:block;
+box-sizing:border-box;
+}
+
+.custom-rules li del{
+color:#FFD7E4;
+background:var(--dark-color);
+border-radius:8px;
+padding:6px;
+}
+.custom-rules li p{
+margin-top:16px;
+margin-bottom:8px;
+}
+</style></head><body data-host="itch.io" class="locale_en jam_layout_widget layout_widget no_theme_toggle responsive" data-page_name="view_jam"><div class="jam_page_wrap"><div id="jam_layout_header_6217941" class="gray jam_layout_header_widget header_widget base_widget small_logo"><a class="skip_to_main" href="#maincontent">Skip to main content</a><div class="primary_header"><h1 class="title" title="itch.io - indie game hosting marketplace"><a title="itch.io - indie game hosting marketplace" class="header_logo" href="/"><span class="visually_hidden">itch.io</span><img alt="itch.io logo &amp; title" class="full_logo" width="775" height="199" src="https://static.itch.io/images/logo-black-new.svg"/><img alt="itch.io logo" class="minimal_logo" width="262" height="235" src="https://static.itch.io/images/itchio-textless-black.svg"/></a></h1><div class="header_buttons"><a data-label="browse" class="header_button browse_btn" href="/games">Browse Games</a><a data-label="jams" class="header_button jams_btn" href="/jams">Game Jams</a><a data-label="developers" class="header_button developers_btn" href="/developers"><span class="icon icon-upload" aria-hidden="true"></span>Upload Game</a><a data-label="devlogs" class="header_button devlogs_btn" href="/devlogs">Developer Logs</a><a data-label="community.home" class="header_button community.home_btn" href="/community">Community</a></div><form class="game_search" action="/search"><input class="search_input" placeholder="Search for games, jams, tags or creators" type="text" required="required" name="q"/><button class="submit_btn" aria-label="Search"><svg stroke-linecap="round" class="svgicon icon_search" width="18" height="18" fill="none" role="img" stroke="currentColor" viewBox="0 0 24 24" version="1.1" aria-hidden stroke-width="3" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button></form><div id="user_panel_279060" class="user_panel_widget base_widget"><a data-register_action="header" data-label="log_in" class="panel_button" href="/login">Log in</a><a data-register_action="header" data-label="register" class="panel_button register_button" href="/register">Register</a></div></div><div class="header_dropdown" data-target="browse"><a href="/games/store">Indie game store</a><a href="/games/free">Free games</a><a href="/games/fun">Fun games</a><a href="/games/tag-horror">Horror games</a><div class="divider"></div><a href="/tools">Game development</a><a href="/game-assets">Assets</a><a href="/comics">Comics</a><div class="divider"></div><a href="/sales">Sales</a><a href="/bundles">Bundles</a><div class="divider"></div><a href="/jobs">Jobs</a><div class="divider"></div><a href="/tags">Tags</a><a href="/game-development/engines">Game Engines</a></div></div><div id="view_jam_6933075" class="view_jam_page view_jam_base_page page_widget base_widget view_jam_default during_submit has_banner"><div class="jam_banner_outer"><img class="jam_banner " src="https://img.itch.zone/aW1hZ2UyL2phbS80MTYyMTIvMjY5NzkyMjYuZ2lm/original/cjgV6v.gif"/></div><div class="jam_body"><div id="jam_header_3208452" class="jam_header_widget base_widget"><div class="header_inner"><div class="header_columns"><div class="title_colum"><h1 class="jam_title_header"><a href="/jam/mini-jam-210-astral">Mini Jam 210: Astral</a></h1><div class="jam_host_header">Hosted by <a href="https://zahranworrell.itch.io">ZahranW</a> · <a href="https://bsky.app/hashtag/minijam">#minijam</a></div></div><div class="stats_container"><div class="stat_box"><div class="stat_value">404</div><div class="stat_label">Joined</div></div></div></div><div class="header_tabs"><a data-label="tab_view_jam" class="header_tab active" href="/jam/mini-jam-210-astral">Overview</a><div class="tab_group"><a class="header_tab" href="/jam/mini-jam-210-astral/community">Community</a><span class="community_activity">3</span></div></div></div></div><div class="submitter_outer"><div id="jam_submitter_3278694" class="jam_submitter_widget base_widget during_submit"><div class="date_data">Submissions open from <span class="date_format" data-format="MMMM Do YYYY [at] h:mm A">2026-05-08 04:00:00</span> to <span class="date_format" data-format="MMMM Do YYYY [at] h:mm A">2026-05-11 04:00:00</span></div><div class="countdown"><span class="countdown_label">Submissions due in</span><div class="times"><div data-name="years" class="time_block"><div class="block_value"></div><div class="block_label">years</div></div><div data-name="months" class="time_block"><div class="block_value"></div><div class="block_label">months</div></div><div data-name="days" class="time_block"><div class="block_value"></div><div class="block_label">days</div></div><div data-name="hours" class="time_block"><div class="block_value"></div><div class="block_label">hours</div></div><div data-name="minutes" class="time_block"><div class="block_value"></div><div class="block_label">minutes</div></div><div data-name="seconds" class="time_block"><div class="block_value"></div><div class="block_label">seconds</div></div></div></div><div class="state_action"><button data-method="post" data-href="/jam/416212/join" class="button fat submitter_button join_jam_btn">Join jam</button></div></div></div><div class="jam_content user_formatted"><div class="custom-section custom-section-welcome">
+<h2>What is Mini Jam?</h2>
+<p><a target="_blank" href="https://minijamofficial.com/" referrerpolicy="origin" rel="nofollow noopener"></a><a href="https://minijamofficial.com/" target="_blank" referrerpolicy="origin" rel="nofollow noopener">Mini jam</a>&nbsp;is a 72-hour-long game development jam that occurs every two weeks&nbsp;on&nbsp;Itch.io.<br> <br>The main focus of this jam is the&nbsp;mandatory limitation is&nbsp;announced as soon as the jam starts. The theme is provided early, so you can plan ahead. Just keep in mind that you may have to change your idea when the limitation is revealed.&nbsp; This jam&#x27;s theme is <strong><del>Astral</del></strong>. Said&nbsp;theme is purely inspirational and it&#x27;s&nbsp;<em>not&nbsp;</em>required that you incorporate it into your game if you don&#x27;t want to. Feel free to interpret it however you want.</p><p>If you are unable to submit your game before the deadline, do not panic. There will be an announcement on the discord as well as a post in the jam community tab explaining the steps necessary to submit your game late.</p><p><a target="_blank" href="https://discord.gg/rTPBW9t" referrerpolicy="origin" rel="nofollow noopener">Join the discord server</a> if you have any questions, want to be notified of any news,&nbsp;or just want to hang out with fellow jammers.<br></p>
+</div>
+<div class="custom-section custom-section-limitation">
+<h2>Limitation</h2>
+<p>The limitation is a special condition that your game&nbsp;<em>must&nbsp;</em>follow, but is entirely&nbsp;open to interpretation. If you are unsure if your idea does or doesn&#x27;t fit the limitation,&nbsp; just remember that everyone will interpret&nbsp;it differently. If you believe in your interpretation, chances are, someone else will too.</p><p>Limitation: <strong><del>Base your game off of a myth or legend</del></strong></p>
+<p>You may Interpret this limitation in any way you see fit</p><p><a target="_blank" href="https://minijamofficial.com/voting" referrerpolicy="origin" rel="nofollow noopener"></a></p><p><a target="_blank" href="https://minijamofficial.com/voting" referrerpolicy="origin" rel="nofollow noopener"></a></p></div>
+<div class="custom-section custom-section-ratings"><h2>Ratings</h2>
+<p>At the end of the Jam, there will be a rating period that lasts 5 days. Anyone who submits a game to the jam, as well as any team members added&nbsp;as contributors to your game&#x27;s project page can rate other games for the jam.&nbsp;Games will be&nbsp;rated on the following criteria:<br>
+</p>
+<ul>
+<li>
+<strong><del>Enjoyment</del></strong> - How much you enjoyed your time with the game.
+</li>
+<li>
+<strong><del>Concept&nbsp;</del></strong> - How interesting or unique the main focus of the game was.
+</li>
+<li>
+<strong><del>Presentation&nbsp;</del></strong> - How well executed the main focus of the game was.
+</li>
+<li>
+<strong><del>Use of limitation</del></strong> - How well the game incorporated the given limitation.
+</li>
+</ul>
+<p>Keep in mind that while the limitation is mandatory, the&nbsp;<em>theme&nbsp;</em>is purely for inspiration, and you should&nbsp;<em>not</em>&nbsp;rate a game differently based on how well the theme was incorporated.&nbsp;</p>
+</div>
+<div class="custom-section custom-section-rules">
+<h2>Rules</h2>
+<ul class="custom-rules">
+<li>
+<del>Read the rules</del>
+<p>Not reading the rules is not an excuse for breaking them.</p>
+</li>
+<li>
+<del>Follow the limitation</del>
+<p>It is mandatory that you incorporate the jam&#x27;s limitation into your game. This said, how you choose to interpret its meaning and go about incorporating it&nbsp;is entirely up to you.</p>
+</li>
+<li>
+<del>The game must be made for the jam</del>
+<p>You cannot submit previously made games to the jam. This jam is about creating something new in the given period of time.</p>
+</li>
+<li>
+<del>Keep game content clean</del>
+<p>Any and all&nbsp;NSFW&nbsp;content, potentially offensive content, graphic content etc.&nbsp;<em>must&nbsp;</em>be clearly telegraphed with a content warning at the start of the game or&nbsp;in its description or cover.</p>
+</li>
+<li>
+<del>Answer submission questions honestly</del>
+<p>You will be prompted to answer a few questions when submitting your game. Please answer them to the best of your ability. Giving vague answers is a great way to set off red flags.</p>
+</li>
+</ul>
+<p>Any games that do not follow the rules&nbsp;<em>may be removed</em>&nbsp;from the jam without warning.</p></div>
+<div class="custom-section custom-section-faq"><h2>FAQ</h2>
+<details>
+<p>There will be an announcement on the discord server, as well as a post in the community tab on the jam page&nbsp;explaining the steps you should take to submit your project late if you missed the set deadline.
+</p><summary> Help! I couldn&#x27;t submit on time, what do I do? </summary>
+</details>
+<details>
+<p>Mini Jam takes place every 2 weeks on a Thursday/Friday, depending on your time zone. You can expect the next Mini Jam to be up within a week of its start date.</p><summary> When does the next Mini Jam start, and when will it be announced?</summary>
+</details>
+<details>
+<p>The theme exists to inspire, following it is totally optional. However, following the limitation in some way&nbsp;is mandatory.</p><summary> Do I have to follow the theme?<br> </summary>
+</details>
+<details>
+<p>Almost certainly. You can interpret the limitation in any way you want. It will be up to you and your fellow jammers to determine if your interpretation is compelling.</p><summary>Is my idea&nbsp;a valid interpretation of the limitation?<br> </summary>
+</details>
+<details>
+<p>You can use any engine or framework you like. You can even make your own if you want.
+</p><summary> What engine can I use? </summary>
+</details>
+<details>
+<p>While video games are expected, this jam is open to any sort of game. You can build your game for any platform.
+</p><summary> What kind of game can I make? </summary>
+</details>
+<details>
+<p>Yes, you can make any changes to the project or project page during the rating period, just make sure that the original version of the game can still be downloaded if your project has a downloadable build and make a note on the game page describing what the changes in the post-jam version are.</p><summary> Can I make changes during the rating period?</summary>
+</details>
+<details>
+<p>As long as the game is mostly made within the jam timeframe, anything that wasn&#x27;t made specifically for this particular jam such as code from other projects or assets from asset packs&nbsp;are allowed, provided you have the legal rights to use them in your project.</p><summary> I have code or other assets from other projects I wish to use, are these allowed?</summary></details>
+<details>
+<p>Yes, but that is generally not advised. If you intend on working with multiple teams, please make sure each team is made aware and is okay with this.</p><summary> Can I submit more than one game? </summary>
+</details>
+<details>
+<p>Mini Jam is a strictly prize-less jam. The prizes are the games we&#x27;ve made along the way.
+</p><summary> Is there a prize for the winners? </summary>
+</details></div>
+<div class="custom-section custom-section-partners">
+<h2>Partners</h2>
+<p>Participating in&nbsp;Ludum Dare? Be sure to join the official unofficial&nbsp;<a target="_blank" href="https://discord.gg/9DrcQmg" referrerpolicy="origin" rel="nofollow noopener">Discord server</a>.
+</p>
+<p>Want a fun and easy way to make games? Try out&nbsp;<a target="_blank" href="https://ctjs.rocks/" referrerpolicy="origin" rel="nofollow noopener">Ct.Js</a>! It&#x27;s&nbsp;a free 2D game editor that aims to make programming fun and game development easy by its visual editors and well-documented code library. Available for Windows, Mac and Linux.</p>
+</div>
+<div class="custom-section custom-heart"><br></div>
+<div class="custom_backing"><br><br></div></div></div><script id="add_game_to_jam_lightbox_tpl" type="text/template"><div tabIndex="-1" role="dialog" id="add_game_to_jam_lightbox_5784222" class="add_game_to_jam_lightbox_widget lightbox_widget base_widget  force_login has_fields lightbox"><button class="close_button"><svg stroke-linecap="round" class="svgicon icon_cross2" width="18" height="18" fill="none" role="img" stroke="currentColor" viewBox="0 0 24 24" version="1.1" aria-hidden stroke-width="2" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button><h2>Log in to continue</h2><p>This jam is using <a target="_blank" href="http://itch.io">itch.io</a> to host entries. You&#039;ll need to register or log in on
+      itch.io in order to <span class="on_submit">submit your game</span><span class="on_join">join this jam</span>.</p><p class="on_submit">After signing in you can create a new game on itch.io then
+      return here and click the <em>submit game</em> button again to enter your game.</p><p><a data-register_action="jam_submit" class="button" href="/login?intent=jam_submit&amp;return_to=https%3A%2F%2Fitch.io%2Fjam%2Fmini-jam-210-astral">Log in</a><span class="or_split"> or </span><a data-register_action="jam_submit" class="button" href="/register?intent=jam_submit&amp;return_to=https%3A%2F%2Fitch.io%2Fjam%2Fmini-jam-210-astral">Register</a></p></div></script></div></div><script id="loading_lightbox_tpl" type="text/template"><div aria-live="polite" class="lightbox loading_lightbox"><div class="loader_outer"><div class="loader_label">Loading</div><div class="loader_bar"><div class="loader_bar_slider"></div></div></div></div></script><script type="text/javascript">new I.ViewJam('#view_jam_6933075', {"voting_end_date":"2026-05-15 04:00:00","end_date":"2026-05-11 04:00:00","id":416212,"start_date":"2026-05-08 04:00:00"});init_JamLayoutHeader('#jam_layout_header_6217941', {"autocomplete_props":{"i18n":{"search_placeholder":"Search for games, jams, tags or creators","search":"Search"},"ca_source":25,"ca_types":{"game":1,"browse_facet":8,"featured_tag":7,"jam":4},"autocomplete_url":"\/autocomplete","search_url":"\/search"}});
+I.setup_page();</script><script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script></body></html>
