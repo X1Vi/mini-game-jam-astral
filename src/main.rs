@@ -4,6 +4,7 @@ mod dialogue;
 mod inventory;
 
 use macroquad::prelude::*;
+use macroquad::audio::{load_sound, play_sound, stop_sound, PlaySoundParams};
 
 use character::{Character, CharacterClass};
 use combat::{CombatPhase, CombatState, Enemy};
@@ -16,7 +17,7 @@ const MAP_H: usize = 18;
 const SPEED: f32 = 150.0;
 const PARRY_TIMEOUT: f32 = 1.2;
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum Scene {
     MainMenu,
     CharSelect,
@@ -40,6 +41,52 @@ struct WorldEntity {
     alive: bool,
 }
 
+#[allow(dead_code)]
+struct SpriteStore {
+    tile_grass: Texture2D,
+    tile_tree: Texture2D,
+    tile_empty: Texture2D,
+    tile_tree_b: Texture2D,
+    char_warrior: Texture2D,
+    char_knight: Texture2D,
+    char_knight_visor: Texture2D,
+    char_ranger: Texture2D,
+    char_bandit: Texture2D,
+    enemy_bat: Texture2D,
+    enemy_ghost: Texture2D,
+    item_herb: Texture2D,
+    item_mushroom: Texture2D,
+    chest_closed: Texture2D,
+}
+
+impl SpriteStore {
+    async fn load() -> Self {
+        macro_rules! t {
+            ($p:expr) => {{
+                let tex = load_texture(concat!("assets/sprites/", $p)).await.unwrap();
+                tex.set_filter(FilterMode::Nearest);
+                tex
+            }};
+        }
+        Self {
+            tile_grass: t!("tile_grass.png"),
+            tile_tree: t!("tile_tree.png"),
+            tile_empty: t!("tile_empty.png"),
+            tile_tree_b: t!("tile_tree_b.png"),
+            char_warrior: t!("char_warrior.png"),
+            char_knight: t!("char_knight.png"),
+            char_knight_visor: t!("char_knight_visor.png"),
+            char_ranger: t!("char_ranger.png"),
+            char_bandit: t!("char_bandit.png"),
+            enemy_bat: t!("enemy_bat.png"),
+            enemy_ghost: t!("enemy_ghost.png"),
+            item_herb: t!("item_herb.png"),
+            item_mushroom: t!("item_mushroom.png"),
+            chest_closed: t!("chest_closed.png"),
+        }
+    }
+}
+
 struct Game {
     scene: Scene,
     player: Option<Character>,
@@ -56,6 +103,7 @@ struct Game {
     msg_timer: f32,
     reason: String,
     hover_class: Option<CharacterClass>,
+    sprites: SpriteStore,
 }
 
 fn gen_map() -> [[i32; MAP_W]; MAP_H] {
@@ -94,15 +142,6 @@ fn tile_solid(v: i32) -> bool {
     v != 0
 }
 
-fn tile_color(v: i32) -> Color {
-    match v {
-        0 => Color::new(0.15, 0.35, 0.12, 1.0),
-        1 => Color::new(0.30, 0.28, 0.25, 1.0),
-        2 => Color::new(0.10, 0.20, 0.55, 1.0),
-        _ => Color::new(0.22, 0.20, 0.18, 1.0),
-    }
-}
-
 fn collide_map(map: &[[i32; MAP_W]; MAP_H], x: f32, y: f32) -> bool {
     let tx = (x / TILE) as usize;
     let ty = (y / TILE) as usize;
@@ -112,83 +151,85 @@ fn collide_map(map: &[[i32; MAP_W]; MAP_H], x: f32, y: f32) -> bool {
     tile_solid(map[ty][tx])
 }
 
-impl Game {
-    fn new() -> Self {
-        let entities = vec![
-            WorldEntity {
-                x: 6.0 * TILE,
-                y: 3.0 * TILE,
-                kind: EntityKind::Npc(0),
-                alive: true,
-            },
-            WorldEntity {
-                x: 15.0 * TILE,
-                y: 10.0 * TILE,
-                kind: EntityKind::Npc(1),
-                alive: true,
-            },
-            WorldEntity {
-                x: 5.0 * TILE,
-                y: 5.0 * TILE,
-                kind: EntityKind::Npc(2),
-                alive: true,
-            },
-            WorldEntity {
-                x: 9.0 * TILE,
-                y: 13.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Bandit", 50, 9, 11)),
-                alive: true,
-            },
-            WorldEntity {
-                x: 18.0 * TILE,
-                y: 4.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Bat", 30, 7, 16)),
-                alive: true,
-            },
-            WorldEntity {
-                x: 12.0 * TILE,
-                y: 7.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Spider", 55, 10, 13)),
-                alive: true,
-            },
-            WorldEntity {
-                x: 20.0 * TILE,
-                y: 14.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)),
-                alive: true,
-            },
-            WorldEntity {
-                x: 3.0 * TILE,
-                y: 15.0 * TILE,
-                kind: EntityKind::Pickup(Item::health_potion(), false),
-                alive: true,
-            },
-            WorldEntity {
-                x: 22.0 * TILE,
-                y: 8.0 * TILE,
-                kind: EntityKind::Pickup(Item::mana_potion(), false),
-                alive: true,
-            },
-            WorldEntity {
-                x: 10.0 * TILE,
-                y: 15.0 * TILE,
-                kind: EntityKind::Pickup(Item::astral_herb(), false),
-                alive: true,
-            },
-            WorldEntity {
-                x: 14.0 * TILE,
-                y: 5.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Giant Bat", 40, 8, 18)),
-                alive: true,
-            },
-            WorldEntity {
-                x: 7.0 * TILE,
-                y: 11.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Cave Spider", 65, 12, 12)),
-                alive: true,
-            },
-        ];
+fn make_entities() -> Vec<WorldEntity> {
+    vec![
+        WorldEntity {
+            x: 6.0 * TILE,
+            y: 3.0 * TILE,
+            kind: EntityKind::Npc(0),
+            alive: true,
+        },
+        WorldEntity {
+            x: 15.0 * TILE,
+            y: 10.0 * TILE,
+            kind: EntityKind::Npc(1),
+            alive: true,
+        },
+        WorldEntity {
+            x: 5.0 * TILE,
+            y: 5.0 * TILE,
+            kind: EntityKind::Npc(2),
+            alive: true,
+        },
+        WorldEntity {
+            x: 9.0 * TILE,
+            y: 13.0 * TILE,
+            kind: EntityKind::Enemy(Enemy::basic("Bandit", 50, 9, 11)),
+            alive: true,
+        },
+        WorldEntity {
+            x: 18.0 * TILE,
+            y: 4.0 * TILE,
+            kind: EntityKind::Enemy(Enemy::basic("Bat", 30, 7, 16)),
+            alive: true,
+        },
+        WorldEntity {
+            x: 12.0 * TILE,
+            y: 7.0 * TILE,
+            kind: EntityKind::Enemy(Enemy::basic("Ghost", 55, 10, 13)),
+            alive: true,
+        },
+        WorldEntity {
+            x: 20.0 * TILE,
+            y: 14.0 * TILE,
+            kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)),
+            alive: true,
+        },
+        WorldEntity {
+            x: 3.0 * TILE,
+            y: 15.0 * TILE,
+            kind: EntityKind::Pickup(Item::health_potion(), false),
+            alive: true,
+        },
+        WorldEntity {
+            x: 22.0 * TILE,
+            y: 8.0 * TILE,
+            kind: EntityKind::Pickup(Item::mana_potion(), false),
+            alive: true,
+        },
+        WorldEntity {
+            x: 10.0 * TILE,
+            y: 15.0 * TILE,
+            kind: EntityKind::Pickup(Item::astral_herb(), false),
+            alive: true,
+        },
+        WorldEntity {
+            x: 14.0 * TILE,
+            y: 5.0 * TILE,
+            kind: EntityKind::Enemy(Enemy::basic("Giant Bat", 40, 8, 18)),
+            alive: true,
+        },
+        WorldEntity {
+            x: 7.0 * TILE,
+            y: 11.0 * TILE,
+            kind: EntityKind::Enemy(Enemy::basic("Shadow Ghost", 65, 12, 12)),
+            alive: true,
+        },
+    ]
+}
 
+impl Game {
+    fn new(sprites: SpriteStore) -> Self {
         Self {
             scene: Scene::MainMenu,
             player: None,
@@ -196,7 +237,7 @@ impl Game {
             py: 9.0 * TILE,
             cam_x: 0.0,
             cam_y: 0.0,
-            entities,
+            entities: make_entities(),
             inventory: Inventory::new(),
             combat: None,
             dialogue: None,
@@ -205,6 +246,7 @@ impl Game {
             msg_timer: 0.0,
             reason: String::new(),
             hover_class: None,
+            sprites,
         }
     }
 
@@ -659,7 +701,19 @@ fn update_dialogue(game: &mut Game) {
 
 fn update_game_over(game: &mut Game) {
     if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) {
-        *game = Game::new();
+        game.scene = Scene::MainMenu;
+        game.player = None;
+        game.px = 12.0 * TILE;
+        game.py = 9.0 * TILE;
+        game.entities = make_entities();
+        game.inventory = Inventory::new();
+        game.combat = None;
+        game.dialogue = None;
+        game.map = gen_map();
+        game.msg = String::new();
+        game.msg_timer = 0.0;
+        game.reason = String::new();
+        game.hover_class = None;
     }
 }
 
@@ -763,6 +817,17 @@ fn draw_char_select(game: &Game) {
         draw_text(name, bx + 12.0, by + 28.0, 26.0, *col);
         draw_text(desc, bx + 12.0, by + 56.0, 15.0, LIGHTGRAY);
 
+        let char_tex = match cc {
+            CharacterClass::Warrior => &game.sprites.char_warrior,
+            CharacterClass::Knight => &game.sprites.char_knight,
+            CharacterClass::Archer => &game.sprites.char_ranger,
+            CharacterClass::Mage => &game.sprites.char_bandit,
+        };
+        draw_texture_ex(char_tex, bx + bw - 80.0, by + 20.0, WHITE, DrawTextureParams {
+            dest_size: Some(Vec2::new(64.0, 64.0)),
+            ..Default::default()
+        });
+
         let tmp = Character::new(*cc);
         let stats = format!(
             "HP:{}  MANA:{}  STR:{}  AGI:{}  INT:{}  VIT:{}",
@@ -788,17 +853,15 @@ fn draw_wandering(game: &Game) {
             let v = game.map[ty][tx];
             let sx = tx as f32 * TILE - game.cam_x;
             let sy = ty as f32 * TILE - game.cam_y;
-            draw_rectangle(sx, sy, TILE, TILE, tile_color(v));
-            if tile_solid(v) {
-                draw_rectangle_lines(
-                    sx,
-                    sy,
-                    TILE,
-                    TILE,
-                    1.0,
-                    Color::new(0.1, 0.1, 0.1, 0.5),
-                );
-            }
+            let tex = match v {
+                0 => &game.sprites.tile_grass,
+                1 => &game.sprites.tile_tree,
+                _ => &game.sprites.tile_empty,
+            };
+            draw_texture_ex(tex, sx, sy, WHITE, DrawTextureParams {
+                dest_size: Some(Vec2::new(TILE, TILE)),
+                ..Default::default()
+            });
         }
     }
 
@@ -812,16 +875,32 @@ fn draw_wandering(game: &Game) {
             continue;
         }
         match &e.kind {
-            EntityKind::Enemy(_) => {
-                draw_rectangle(sx, sy, TILE, TILE, RED);
-                draw_rectangle_lines(sx, sy, TILE, TILE, 1.5, Color::new(0.8, 0.2, 0.2, 1.0));
+            EntityKind::Enemy(enemy) => {
+                let tex = match enemy.name.as_str() {
+                    "Bat" | "Giant Bat" => &game.sprites.enemy_bat,
+                    "Bandit" | "Bandit Leader" => &game.sprites.char_bandit,
+                    _ => &game.sprites.enemy_ghost,
+                };
+                draw_texture_ex(tex, sx, sy, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(TILE, TILE)),
+                    ..Default::default()
+                });
             }
             EntityKind::Npc(_) => {
-                draw_rectangle(sx, sy, TILE, TILE, YELLOW);
-                draw_rectangle_lines(sx, sy, TILE, TILE, 1.5, Color::new(0.8, 0.8, 0.1, 1.0));
+                draw_texture_ex(&game.sprites.enemy_ghost, sx, sy, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(TILE, TILE)),
+                    ..Default::default()
+                });
             }
             EntityKind::Pickup(item, _) => {
-                draw_rectangle(sx + 6.0, sy + 6.0, 20.0, 20.0, SKYBLUE);
+                let tex = match item.name.as_str() {
+                    "Astral Herb" => &game.sprites.item_herb,
+                    _ => &game.sprites.item_mushroom,
+                };
+                draw_texture_ex(tex, sx + 6.0, sy + 6.0, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(20.0, 20.0)),
+                    ..Default::default()
+                });
                 let label = match item.category {
                     inventory::ItemCategory::Consumable => "POTION",
                     inventory::ItemCategory::Material => "HERB",
@@ -843,14 +922,19 @@ fn draw_wandering(game: &Game) {
     if let Some(ref player) = game.player {
         let px = game.px - game.cam_x;
         let py = game.py - game.cam_y;
-        let col = match player.class {
-            CharacterClass::Warrior => RED,
-            CharacterClass::Knight => Color::new(0.7, 0.7, 0.8, 1.0),
-            CharacterClass::Archer => GREEN,
-            CharacterClass::Mage => BLUE,
+        let tex = match player.class {
+            CharacterClass::Warrior => &game.sprites.char_warrior,
+            CharacterClass::Knight => match player.visor_state {
+                character::VisorState::Up => &game.sprites.char_knight,
+                character::VisorState::Down => &game.sprites.char_knight_visor,
+            },
+            CharacterClass::Archer => &game.sprites.char_ranger,
+            CharacterClass::Mage => &game.sprites.char_ranger,
         };
-        draw_rectangle(px, py, TILE, TILE, col);
-        draw_rectangle_lines(px, py, TILE, TILE, 2.0, WHITE);
+        draw_texture_ex(tex, px, py, WHITE, DrawTextureParams {
+            dest_size: Some(Vec2::new(TILE, TILE)),
+            ..Default::default()
+        });
 
         if player.class == CharacterClass::Knight {
             let vtext = match player.visor_state {
@@ -936,6 +1020,17 @@ fn draw_combat(game: &Game) {
     draw_rectangle_lines(sw * 0.25, 80.0, sw * 0.5, 140.0, 2.0, DARKGRAY);
     let enw = measure_text(&cs.enemy.name, None, 28, 1.0).width;
     draw_text(&cs.enemy.name, sw * 0.5 - enw / 2.0, 130.0, 28.0, ORANGE);
+
+    // Enemy sprite
+    let etex = match cs.enemy.name.as_str() {
+        "Bat" | "Giant Bat" => &game.sprites.enemy_bat,
+        "Bandit" | "Bandit Leader" => &game.sprites.char_bandit,
+        _ => &game.sprites.enemy_ghost,
+    };
+    draw_texture_ex(etex, sw * 0.25 + 60.0, 50.0, WHITE, DrawTextureParams {
+        dest_size: Some(Vec2::new(96.0, 96.0)),
+        ..Default::default()
+    });
 
     // Parry circle visualization
     if cs.phase == CombatPhase::ParryPhase {
@@ -1140,10 +1235,41 @@ fn draw_game_over(game: &Game) {
 
 #[macroquad::main("Astral Legends")]
 async fn main() {
-    let mut game = Game::new();
+    let sprites = SpriteStore::load().await;
+    let mut game = Game::new(sprites);
+
+    let menu_music = load_sound("assets/audio/Prayer_for_a_Lost_Realm_Intro_Music.ogg").await.ok();
+    let wander_music = load_sound("assets/audio/Cheerful_Music.ogg").await.ok();
+
+    let mut last_scene = Scene::MainMenu;
+    if let Some(ref m) = menu_music {
+        play_sound(m, PlaySoundParams { looped: true, volume: 0.4 });
+    }
 
     loop {
         let dt = get_frame_time().min(0.05);
+
+        if game.scene != last_scene {
+            match last_scene {
+                Scene::MainMenu => { if let Some(ref m) = menu_music { stop_sound(m); } }
+                Scene::Wandering => { if let Some(ref m) = wander_music { stop_sound(m); } }
+                _ => {}
+            }
+            match game.scene {
+                Scene::MainMenu => {
+                    if let Some(ref m) = menu_music {
+                        play_sound(m, PlaySoundParams { looped: true, volume: 0.4 });
+                    }
+                }
+                Scene::Wandering => {
+                    if let Some(ref m) = wander_music {
+                        play_sound(m, PlaySoundParams { looped: true, volume: 0.3 });
+                    }
+                }
+                _ => {}
+            }
+            last_scene = game.scene;
+        }
 
         match game.scene {
             Scene::MainMenu => update_main_menu(&mut game),
