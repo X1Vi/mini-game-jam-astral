@@ -4,7 +4,6 @@ mod dialogue;
 mod inventory;
 
 use macroquad::prelude::*;
-use macroquad::audio::{load_sound, play_sound, stop_sound, PlaySoundParams};
 
 use character::{Character, CharacterClass};
 use combat::{CombatPhase, CombatState, Enemy};
@@ -19,6 +18,7 @@ const PARRY_TIMEOUT: f32 = 1.2;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Scene {
+    Intro,
     MainMenu,
     CharSelect,
     Wandering,
@@ -52,18 +52,31 @@ struct SpriteStore {
     char_knight_visor: Texture2D,
     char_ranger: Texture2D,
     char_bandit: Texture2D,
+    dark_mage: Texture2D,
     enemy_bat: Texture2D,
     enemy_ghost: Texture2D,
     item_herb: Texture2D,
     item_mushroom: Texture2D,
     chest_closed: Texture2D,
+    weapon_sword: Texture2D,
+    weapon_spear: Texture2D,
 }
 
 impl SpriteStore {
     async fn load() -> Self {
+        let base = std::path::Path::new("assets/sprites/");
+        if !base.exists() {
+            eprintln!("ERROR: assets/sprites/ directory not found!");
+            eprintln!("Make sure you run the game from the project root directory:");
+            eprintln!("  cd mini-game-astral && cargo run");
+            std::process::exit(1);
+        }
         macro_rules! t {
             ($p:expr) => {{
-                let tex = load_texture(concat!("assets/sprites/", $p)).await.unwrap();
+                let path = format!("assets/sprites/{}", $p);
+                let tex = load_texture(&path).await.unwrap_or_else(|e| {
+                    panic!("Failed to load {}: {:?}", path, e);
+                });
                 tex.set_filter(FilterMode::Nearest);
                 tex
             }};
@@ -78,11 +91,14 @@ impl SpriteStore {
             char_knight_visor: t!("char_knight_visor.png"),
             char_ranger: t!("char_ranger.png"),
             char_bandit: t!("char_bandit.png"),
+            dark_mage: t!("dark_mage.png"),
             enemy_bat: t!("enemy_bat.png"),
             enemy_ghost: t!("enemy_ghost.png"),
             item_herb: t!("item_herb.png"),
             item_mushroom: t!("item_mushroom.png"),
             chest_closed: t!("chest_closed.png"),
+            weapon_sword: t!("weapon_sword.png"),
+            weapon_spear: t!("weapon_spear.png"),
         }
     }
 }
@@ -358,6 +374,13 @@ fn mouse_in_rect(x: f32, y: f32, w: f32, h: f32) -> bool {
 // ---------------------------------------------------------------
 //  UPDATE functions
 // ---------------------------------------------------------------
+
+fn update_intro(game: &mut Game, dt: f32) {
+    if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) || game.msg_timer <= 0.0 {
+        game.scene = Scene::MainMenu;
+    }
+    game.msg_timer -= dt;
+}
 
 fn update_main_menu(game: &mut Game) {
     if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) {
@@ -759,6 +782,26 @@ fn draw_main_menu(_game: &Game) {
     draw_text(ver, sw * 0.5 - vw / 2.0, sh * 0.92, 12.0, GRAY);
 }
 
+fn draw_intro(_game: &Game) {
+    let sw = screen_width();
+    let sh = screen_height();
+    draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.02, 0.01, 0.05, 1.0));
+
+    let mx = sw * 0.5;
+    let my = sh * 0.45;
+    let text = "X1Vi Games";
+    let tw = measure_text(text, None, 42, 1.0).width;
+    draw_text(text, mx - tw / 2.0, my, 42.0, Color::new(0.6, 0.5, 0.8, 1.0));
+
+    let sub = "presents";
+    let sw2 = measure_text(sub, None, 20, 1.0).width;
+    draw_text(sub, mx - sw2 / 2.0, my + 40.0, 20.0, GRAY);
+
+    let hint = "Press ENTER or SPACE to skip";
+    let hw = measure_text(hint, None, 14, 1.0).width;
+    draw_text(hint, mx - hw / 2.0, sh * 0.75, 14.0, Color::new(0.3, 0.3, 0.4, 1.0));
+}
+
 fn draw_char_select(game: &Game) {
     let sw = screen_width();
     let sh = screen_height();
@@ -821,7 +864,7 @@ fn draw_char_select(game: &Game) {
             CharacterClass::Warrior => &game.sprites.char_warrior,
             CharacterClass::Knight => &game.sprites.char_knight,
             CharacterClass::Archer => &game.sprites.char_ranger,
-            CharacterClass::Mage => &game.sprites.char_bandit,
+            CharacterClass::Mage => &game.sprites.dark_mage,
         };
         draw_texture_ex(char_tex, bx + bw - 80.0, by + 20.0, WHITE, DrawTextureParams {
             dest_size: Some(Vec2::new(64.0, 64.0)),
@@ -853,15 +896,22 @@ fn draw_wandering(game: &Game) {
             let v = game.map[ty][tx];
             let sx = tx as f32 * TILE - game.cam_x;
             let sy = ty as f32 * TILE - game.cam_y;
-            let tex = match v {
-                0 => &game.sprites.tile_grass,
-                1 => &game.sprites.tile_tree,
-                _ => &game.sprites.tile_empty,
-            };
-            draw_texture_ex(tex, sx, sy, WHITE, DrawTextureParams {
+            // Always draw grass floor, then overlay tree/building on top
+            draw_texture_ex(&game.sprites.tile_grass, sx, sy, WHITE, DrawTextureParams {
                 dest_size: Some(Vec2::new(TILE, TILE)),
                 ..Default::default()
             });
+            if v == 1 {
+                draw_texture_ex(&game.sprites.tile_tree, sx, sy, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(TILE, TILE)),
+                    ..Default::default()
+                });
+            } else if v > 1 {
+                draw_texture_ex(&game.sprites.tile_empty, sx, sy, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(TILE, TILE)),
+                    ..Default::default()
+                });
+            }
         }
     }
 
@@ -874,6 +924,7 @@ fn draw_wandering(game: &Game) {
         if sx < -TILE || sy < -TILE || sx > sw + TILE || sy > sh + TILE {
             continue;
         }
+        let ebob = (get_time() * 3.0 + e.x as f64 * 0.1).sin() as f32 * 1.5;
         match &e.kind {
             EntityKind::Enemy(enemy) => {
                 let tex = match enemy.name.as_str() {
@@ -881,13 +932,13 @@ fn draw_wandering(game: &Game) {
                     "Bandit" | "Bandit Leader" => &game.sprites.char_bandit,
                     _ => &game.sprites.enemy_ghost,
                 };
-                draw_texture_ex(tex, sx, sy, WHITE, DrawTextureParams {
+                draw_texture_ex(tex, sx, sy + ebob, WHITE, DrawTextureParams {
                     dest_size: Some(Vec2::new(TILE, TILE)),
                     ..Default::default()
                 });
             }
             EntityKind::Npc(_) => {
-                draw_texture_ex(&game.sprites.enemy_ghost, sx, sy, WHITE, DrawTextureParams {
+                draw_texture_ex(&game.sprites.enemy_ghost, sx, sy + ebob, WHITE, DrawTextureParams {
                     dest_size: Some(Vec2::new(TILE, TILE)),
                     ..Default::default()
                 });
@@ -897,7 +948,7 @@ fn draw_wandering(game: &Game) {
                     "Astral Herb" => &game.sprites.item_herb,
                     _ => &game.sprites.item_mushroom,
                 };
-                draw_texture_ex(tex, sx + 6.0, sy + 6.0, WHITE, DrawTextureParams {
+                draw_texture_ex(tex, sx + 6.0, sy + 6.0 + ebob, WHITE, DrawTextureParams {
                     dest_size: Some(Vec2::new(20.0, 20.0)),
                     ..Default::default()
                 });
@@ -922,6 +973,7 @@ fn draw_wandering(game: &Game) {
     if let Some(ref player) = game.player {
         let px = game.px - game.cam_x;
         let py = game.py - game.cam_y;
+        let bob = (get_time() * 4.0).sin() as f32 * 1.5;
         let tex = match player.class {
             CharacterClass::Warrior => &game.sprites.char_warrior,
             CharacterClass::Knight => match player.visor_state {
@@ -929,12 +981,29 @@ fn draw_wandering(game: &Game) {
                 character::VisorState::Down => &game.sprites.char_knight_visor,
             },
             CharacterClass::Archer => &game.sprites.char_ranger,
-            CharacterClass::Mage => &game.sprites.char_ranger,
+            CharacterClass::Mage => &game.sprites.dark_mage,
         };
-        draw_texture_ex(tex, px, py, WHITE, DrawTextureParams {
+        draw_texture_ex(tex, px, py + bob, WHITE, DrawTextureParams {
             dest_size: Some(Vec2::new(TILE, TILE)),
             ..Default::default()
         });
+
+        // Weapons for Warrior/Knight only
+        match player.class {
+            CharacterClass::Warrior => {
+                draw_texture_ex(&game.sprites.weapon_sword, px + 20.0, py + 8.0 + bob, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(16.0, 16.0)),
+                    ..Default::default()
+                });
+            }
+            CharacterClass::Knight => {
+                draw_texture_ex(&game.sprites.weapon_spear, px + 22.0, py + 6.0 + bob, WHITE, DrawTextureParams {
+                    dest_size: Some(Vec2::new(16.0, 16.0)),
+                    ..Default::default()
+                });
+            }
+            _ => {}
+        }
 
         if player.class == CharacterClass::Knight {
             let vtext = match player.visor_state {
@@ -977,49 +1046,100 @@ fn draw_combat(game: &Game) {
         None => return,
     };
 
+    // Background
     draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.06, 0.03, 0.10, 1.0));
 
+    // Background placeholder pattern
+    for by in (0..(sh as i32)).step_by(64) {
+        for bx in (0..(sw as i32)).step_by(64) {
+            let offset = if (bx / 64 + by / 64) % 2 == 0 { 0.3 } else { 0.15 };
+            draw_rectangle(
+                bx as f32, by as f32, 64.0, 64.0,
+                Color::new(0.08, 0.04, 0.12, offset),
+            );
+        }
+    }
+
+    let bob = (get_time() * 4.0).sin() as f32 * 2.0;
+
+    // --- Player Panel (left side) ---
+    let ppanel_x = 20.0;
+    let ppanel_y = 30.0;
+    let ppanel_w = sw * 0.28;
+    let ppanel_h = 200.0;
+
+    draw_rectangle(ppanel_x, ppanel_y, ppanel_w, ppanel_h, Color::new(0.04, 0.02, 0.08, 0.9));
+    draw_rectangle_lines(ppanel_x, ppanel_y, ppanel_w, ppanel_h, 2.0, Color::new(0.3, 0.2, 0.5, 1.0));
+
+    // Player sprite
+    let ptex = match player.class {
+        CharacterClass::Warrior => &game.sprites.char_warrior,
+        CharacterClass::Knight => match player.visor_state {
+            character::VisorState::Up => &game.sprites.char_knight,
+            character::VisorState::Down => &game.sprites.char_knight_visor,
+        },
+        CharacterClass::Archer => &game.sprites.char_ranger,
+        CharacterClass::Mage => &game.sprites.dark_mage,
+    };
+    draw_texture_ex(ptex, ppanel_x + 10.0, ppanel_y + 10.0 + bob, WHITE, DrawTextureParams {
+        dest_size: Some(Vec2::new(64.0, 64.0)),
+        ..Default::default()
+    });
+
+    // Player weapons
+    match player.class {
+        CharacterClass::Warrior => {
+            draw_texture_ex(&game.sprites.weapon_sword, ppanel_x + 50.0, ppanel_y + 20.0 + bob, WHITE, DrawTextureParams {
+                dest_size: Some(Vec2::new(32.0, 32.0)),
+                ..Default::default()
+            });
+        }
+        CharacterClass::Knight => {
+            draw_texture_ex(&game.sprites.weapon_spear, ppanel_x + 55.0, ppanel_y + 15.0 + bob, WHITE, DrawTextureParams {
+                dest_size: Some(Vec2::new(32.0, 32.0)),
+                ..Default::default()
+            });
+        }
+        _ => {}
+    }
+
+    // Player class name
+    let pname = player.class_name();
+    let pnw = measure_text(pname, None, 18, 1.0).width;
+    draw_text(pname, ppanel_x + ppanel_w / 2.0 - pnw / 2.0, ppanel_y + 85.0, 18.0, WHITE);
+
+    // HP bar
     draw_bar(
-        &player.class_name(),
-        player.hp,
-        player.max_hp,
-        20.0,
-        12.0,
-        sw * 0.44,
-        22.0,
-        RED,
+        "HP", player.hp, player.max_hp,
+        ppanel_x + 8.0, ppanel_y + 95.0, ppanel_w - 16.0, 18.0, RED,
     );
+    // Mana bar
     draw_bar(
-        "Mana",
-        player.mana,
-        player.max_mana,
-        20.0,
-        38.0,
-        sw * 0.44,
-        16.0,
-        BLUE,
-    );
-    draw_bar(
-        &cs.enemy.name,
-        cs.enemy.hp,
-        cs.enemy.max_hp,
-        sw * 0.52,
-        12.0,
-        sw * 0.44,
-        22.0,
-        Color::new(0.9, 0.3, 0.1, 1.0),
+        "MP", player.mana, player.max_mana,
+        ppanel_x + 8.0, ppanel_y + 118.0, ppanel_w - 16.0, 14.0, BLUE,
     );
 
-    draw_rectangle(
-        sw * 0.25,
-        80.0,
-        sw * 0.5,
-        140.0,
-        Color::new(0.08, 0.05, 0.12, 1.0),
-    );
-    draw_rectangle_lines(sw * 0.25, 80.0, sw * 0.5, 140.0, 2.0, DARKGRAY);
-    let enw = measure_text(&cs.enemy.name, None, 28, 1.0).width;
-    draw_text(&cs.enemy.name, sw * 0.5 - enw / 2.0, 130.0, 28.0, ORANGE);
+    // Stats
+    let stats = format!("STR:{} AGI:{} INT:{} VIT:{}", player.str, player.agi, player.int, player.vit);
+    draw_text(&stats, ppanel_x + 8.0, ppanel_y + 145.0, 12.0, GRAY);
+
+    // Knight visor indicator
+    if player.class == CharacterClass::Knight {
+        let vtext = match player.visor_state {
+            character::VisorState::Up => "VISOR:UP",
+            character::VisorState::Down => "VISOR:DOWN",
+        };
+        draw_text(vtext, ppanel_x + 8.0, ppanel_y + 165.0, 12.0, YELLOW);
+    }
+
+    // --- Enemy Panel (right side) ---
+    let epanel_x = sw - 20.0 - sw * 0.28;
+    let epanel_y = 30.0;
+    let epanel_w = sw * 0.28;
+    let epanel_h = 200.0;
+
+    draw_rectangle(epanel_x, epanel_y, epanel_w, epanel_h, Color::new(0.06, 0.02, 0.06, 0.9));
+    draw_rectangle_lines(epanel_x, epanel_y, epanel_w, epanel_h, 2.0, Color::new(0.5, 0.2, 0.2, 1.0));
 
     // Enemy sprite
     let etex = match cs.enemy.name.as_str() {
@@ -1027,26 +1147,38 @@ fn draw_combat(game: &Game) {
         "Bandit" | "Bandit Leader" => &game.sprites.char_bandit,
         _ => &game.sprites.enemy_ghost,
     };
-    draw_texture_ex(etex, sw * 0.25 + 60.0, 50.0, WHITE, DrawTextureParams {
-        dest_size: Some(Vec2::new(96.0, 96.0)),
+    draw_texture_ex(etex, epanel_x + epanel_w / 2.0 - 32.0, epanel_y + 10.0 + bob, WHITE, DrawTextureParams {
+        dest_size: Some(Vec2::new(64.0, 64.0)),
         ..Default::default()
     });
 
-    // Parry circle visualization
+    // Enemy name
+    let enw = measure_text(&cs.enemy.name, None, 18, 1.0).width;
+    draw_text(&cs.enemy.name, epanel_x + epanel_w / 2.0 - enw / 2.0, epanel_y + 85.0, 18.0, ORANGE);
+
+    // Enemy HP bar
+    draw_bar(
+        "HP", cs.enemy.hp, cs.enemy.max_hp,
+        epanel_x + 8.0, epanel_y + 95.0, epanel_w - 16.0, 18.0,
+        Color::new(0.9, 0.3, 0.1, 1.0),
+    );
+
+    // Enemy stats
+    let estats = format!("STR:{} AGI:{}", cs.enemy.str, cs.enemy.agi);
+    draw_text(&estats, epanel_x + 8.0, epanel_y + 125.0, 12.0, GRAY);
+
+    // Parry circle visualization (center screen)
     if cs.phase == CombatPhase::ParryPhase {
         let cx = sw * 0.5;
-        let cy = 280.0;
+        let cy = sh * 0.45;
         let max_radius = 60.0;
         let min_radius = 20.0;
 
-        // Calculate current radius based on timer
         let current_radius = if cs.parry_ratio > cs.parry_target {
-            // Shrinking phase
             let progress = cs.parry_timer / (PARRY_TIMEOUT * 0.5);
             let target_radius = max_radius * cs.parry_target;
             max_radius - (max_radius - target_radius) * progress
         } else {
-            // Growing phase (after passing target)
             let progress = (cs.parry_timer - PARRY_TIMEOUT * 0.5) / (PARRY_TIMEOUT * 0.5);
             let target_radius = max_radius * cs.parry_target;
             target_radius + (min_radius - target_radius) * progress
@@ -1054,19 +1186,14 @@ fn draw_combat(game: &Game) {
 
         let clamped_radius = current_radius.clamp(min_radius, max_radius);
 
-        // Draw outer circle (target zone)
         let target_radius = max_radius * cs.parry_target;
-        let target_color = Color::new(0.3, 0.3, 0.3, 1.0);
-        draw_circle(cx, cy, target_radius, target_color);
+        draw_circle(cx, cy, target_radius, Color::new(0.3, 0.3, 0.3, 1.0));
         draw_circle_lines(cx, cy, target_radius, 2.0, WHITE);
 
-        // Draw inner circle (perfect parry zone)
         let perfect_radius = target_radius * 0.4;
-        let perfect_color = Color::new(0.6, 0.6, 0.0, 0.3);
-        draw_circle(cx, cy, perfect_radius, perfect_color);
+        draw_circle(cx, cy, perfect_radius, Color::new(0.6, 0.6, 0.0, 0.3));
         draw_circle_lines(cx, cy, perfect_radius, 1.5, GOLD);
 
-        // Draw current player circle
         let player_color = if cs.parry_ratio >= cs.parry_target {
             Color::new(0.2, 0.8, 0.2, 1.0)
         } else {
@@ -1075,7 +1202,6 @@ fn draw_combat(game: &Game) {
         draw_circle(cx, cy, clamped_radius, player_color);
         draw_circle_lines(cx, cy, clamped_radius, 2.0, WHITE);
 
-        // Success level indicator
         let success_text = format!("Parry: {:.0}%", (cs.parry_success_level * 100.0) as i32);
         draw_text(
             &success_text,
@@ -1085,7 +1211,6 @@ fn draw_combat(game: &Game) {
             WHITE,
         );
 
-        // Instruction text
         let urgency = (cs.parry_timer / PARRY_TIMEOUT).min(1.0);
         let col = Color::new(1.0, 1.0 - urgency, 0.0, 1.0);
         let instr = "[ SPACE ] Parry!";
@@ -1093,12 +1218,28 @@ fn draw_combat(game: &Game) {
         draw_text(instr, cx - iw / 2.0, cy + max_radius + 50.0, 20.0, col);
     }
 
+    // Combat message in center
+    let msg_y = sh * 0.62;
+    draw_text(&cs.message, sw * 0.5, msg_y, 16.0, LIGHTGRAY);
+
+    // Keep the log minimal — show last 2 lines
+    for (i, line) in cs.log.iter().rev().take(2).enumerate() {
+        let alpha = 1.0 - i as f32 * 0.3;
+        draw_text(
+            line,
+            sw * 0.5,
+            msg_y + 20.0 + i as f32 * 16.0,
+            13.0,
+            Color::new(0.6, 0.6, 0.6, alpha),
+        );
+    }
+
+    // Action buttons at bottom
     let bw = sw * 0.18;
     let bh = 42.0;
-    let base_y = sh - 70.0;
+    let base_y = sh - 60.0;
     let gap = sw * 0.02;
 
-    // Center 4 action buttons as a group
     let group_w = 4.0 * bw + 3.0 * gap;
     let start_x = sw * 0.5 - group_w / 2.0;
 
@@ -1116,7 +1257,6 @@ fn draw_combat(game: &Game) {
         draw_btn(&label, bx, base_y, bw, bh, hover, color);
     }
 
-    // Flee button to the right of the group
     let flee_x = start_x + group_w + gap;
     let fhover =
         cs.phase == CombatPhase::PlayerTurn && mouse_in_rect(flee_x, base_y, bw * 0.6, bh);
@@ -1129,20 +1269,6 @@ fn draw_combat(game: &Game) {
         fhover,
         Color::new(0.3, 0.3, 0.3, 1.0),
     );
-
-    draw_text(&cs.message, 20.0, sh - 100.0, 16.0, LIGHTGRAY);
-
-    let log_start = 340.0;
-    for (i, line) in cs.log.iter().rev().take(4).enumerate() {
-        let alpha = 1.0 - i as f32 * 0.2;
-        draw_text(
-            line,
-            20.0,
-            log_start + i as f32 * 18.0,
-            14.0,
-            Color::new(0.6, 0.6, 0.6, alpha),
-        );
-    }
 }
 
 fn draw_inventory_scene(game: &Game) {
@@ -1237,41 +1363,14 @@ fn draw_game_over(game: &Game) {
 async fn main() {
     let sprites = SpriteStore::load().await;
     let mut game = Game::new(sprites);
-
-    let menu_music = load_sound("assets/audio/Prayer_for_a_Lost_Realm_Intro_Music.ogg").await.ok();
-    let wander_music = load_sound("assets/audio/Cheerful_Music.ogg").await.ok();
-
-    let mut last_scene = Scene::MainMenu;
-    if let Some(ref m) = menu_music {
-        play_sound(m, PlaySoundParams { looped: true, volume: 0.4 });
-    }
+    game.scene = Scene::Intro;
+    game.msg_timer = 2.5;
 
     loop {
         let dt = get_frame_time().min(0.05);
 
-        if game.scene != last_scene {
-            match last_scene {
-                Scene::MainMenu => { if let Some(ref m) = menu_music { stop_sound(m); } }
-                Scene::Wandering => { if let Some(ref m) = wander_music { stop_sound(m); } }
-                _ => {}
-            }
-            match game.scene {
-                Scene::MainMenu => {
-                    if let Some(ref m) = menu_music {
-                        play_sound(m, PlaySoundParams { looped: true, volume: 0.4 });
-                    }
-                }
-                Scene::Wandering => {
-                    if let Some(ref m) = wander_music {
-                        play_sound(m, PlaySoundParams { looped: true, volume: 0.3 });
-                    }
-                }
-                _ => {}
-            }
-            last_scene = game.scene;
-        }
-
         match game.scene {
+            Scene::Intro => update_intro(&mut game, dt),
             Scene::MainMenu => update_main_menu(&mut game),
             Scene::CharSelect => update_char_select(&mut game),
             Scene::Wandering => update_wandering(&mut game, dt),
@@ -1284,6 +1383,7 @@ async fn main() {
         clear_background(Color::new(0.04, 0.02, 0.08, 1.0));
 
         match game.scene {
+            Scene::Intro => draw_intro(&game),
             Scene::MainMenu => draw_main_menu(&game),
             Scene::CharSelect => draw_char_select(&game),
             Scene::Wandering => draw_wandering(&game),
