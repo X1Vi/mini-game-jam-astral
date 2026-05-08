@@ -136,25 +136,25 @@ impl Game {
             WorldEntity {
                 x: 9.0 * TILE,
                 y: 13.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Shadow Wolf", 45, 8, 10)),
+                kind: EntityKind::Enemy(Enemy::basic("Bandit", 50, 9, 11)),
                 alive: true,
             },
             WorldEntity {
                 x: 18.0 * TILE,
                 y: 4.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Void Wraith", 55, 10, 12)),
+                kind: EntityKind::Enemy(Enemy::basic("Bat", 30, 7, 16)),
                 alive: true,
             },
             WorldEntity {
                 x: 12.0 * TILE,
                 y: 7.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Astral Serpent", 70, 12, 14)),
+                kind: EntityKind::Enemy(Enemy::basic("Spider", 55, 10, 13)),
                 alive: true,
             },
             WorldEntity {
                 x: 20.0 * TILE,
                 y: 14.0 * TILE,
-                kind: EntityKind::Enemy(Enemy::basic("Fenrir Spawn", 90, 14, 15)),
+                kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)),
                 alive: true,
             },
             WorldEntity {
@@ -173,6 +173,18 @@ impl Game {
                 x: 10.0 * TILE,
                 y: 15.0 * TILE,
                 kind: EntityKind::Pickup(Item::astral_herb(), false),
+                alive: true,
+            },
+            WorldEntity {
+                x: 14.0 * TILE,
+                y: 5.0 * TILE,
+                kind: EntityKind::Enemy(Enemy::basic("Giant Bat", 40, 8, 18)),
+                alive: true,
+            },
+            WorldEntity {
+                x: 7.0 * TILE,
+                y: 11.0 * TILE,
+                kind: EntityKind::Enemy(Enemy::basic("Cave Spider", 65, 12, 12)),
                 alive: true,
             },
         ];
@@ -527,13 +539,14 @@ fn update_combat(game: &mut Game, dt: f32) {
 
                 if !acted {
                     let sw = screen_width();
-        let sh = screen_height();
                     let bw = sw * 0.18;
                     let bh = 42.0;
-                    let base_y = sh - 70.0;
+                    let base_y = screen_height() - 70.0;
                     let gap = sw * 0.02;
+                    let group_w = 4.0 * bw + 3.0 * gap;
+                    let start_x = sw * 0.5 - group_w / 2.0;
                     for i in 0..4 {
-                        let bx = sw * 0.07 + (i as f32) * (bw + gap);
+                        let bx = start_x + (i as f32) * (bw + gap);
                         if mouse_in_rect(bx, base_y, bw, bh)
                             && is_mouse_button_pressed(MouseButton::Left)
                         {
@@ -658,34 +671,38 @@ fn draw_main_menu(_game: &Game) {
     let sw = screen_width();
     let sh = screen_height();
 
-    // Background
     draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.04, 0.02, 0.08, 1.0));
 
-    // Top decorative line
-    draw_rectangle(sw * 0.3 - 80.0, 0.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
-    draw_rectangle(sw * 0.3 - 80.0, sh - 3.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
+    draw_rectangle(sw * 0.5 - 80.0, 0.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
+    draw_rectangle(sw * 0.5 - 80.0, sh - 3.0, 160.0, 3.0, Color::new(0.6, 0.5, 0.8, 1.0));
 
-    // Main title - centered
-    draw_text("ASTRAL LEGENDS", sw * 0.7, sh * 0.25, 48.0, GOLD);
-    
-    // Subtitle - centered
-    draw_text("A Turn-Based UI RPG", sw * 0.7, sh * 0.32, 18.0, LIGHTGRAY);
+    let title = "ASTRAL LEGENDS";
+    let tw = measure_text(title, None, 48, 1.0).width;
+    draw_text(title, sw * 0.5 - tw / 2.0, sh * 0.25, 48.0, GOLD);
 
-    // Decorative line under title - centered
-    draw_rectangle(sw * 0.7 - 60.0, sh * 0.36, 120.0, 2.0, Color::new(0.6, 0.5, 0.8, 1.0));
+    let sub = "A Turn-Based UI RPG";
+    let sw2 = measure_text(sub, None, 18, 1.0).width;
+    draw_text(sub, sw * 0.5 - sw2 / 2.0, sh * 0.32, 18.0, LIGHTGRAY);
 
-    // Start instruction - centered
-    draw_text("Press ENTER to begin", sw * 0.7, sh * 0.48, 24.0, WHITE);
-    draw_text("Press SPACE to begin", sw * 0.7, sh * 0.52, 16.0, GRAY);
+    draw_rectangle(sw * 0.5 - 60.0, sh * 0.36, 120.0, 2.0, Color::new(0.6, 0.5, 0.8, 1.0));
 
-    // Tagline - centered
-    draw_text("Myths. Magic. Steel.", sw * 0.7, sh * 0.70, 18.0, Color::new(0.7, 0.6, 0.7, 1.0));
+    let enter = "Press ENTER to begin";
+    let ew = measure_text(enter, None, 24, 1.0).width;
+    draw_text(enter, sw * 0.5 - ew / 2.0, sh * 0.48, 24.0, WHITE);
 
-    // Footer line - centered
-    draw_rectangle(sw * 0.7 - 50.0, sh * 0.85, 100.0, 1.0, Color::new(0.5, 0.4, 0.6, 1.0));
+    let space = "Press SPACE to begin";
+    let sw3 = measure_text(space, None, 16, 1.0).width;
+    draw_text(space, sw * 0.5 - sw3 / 2.0, sh * 0.52, 16.0, GRAY);
 
-    // Version info - centered
-    draw_text("Astral Legends v0.1.0", sw * 0.7, sh * 0.92, 12.0, GRAY);
+    let tag = "Myths. Magic. Steel.";
+    let tw2 = measure_text(tag, None, 18, 1.0).width;
+    draw_text(tag, sw * 0.5 - tw2 / 2.0, sh * 0.70, 18.0, Color::new(0.7, 0.6, 0.7, 1.0));
+
+    draw_rectangle(sw * 0.5 - 50.0, sh * 0.85, 100.0, 1.0, Color::new(0.5, 0.4, 0.6, 1.0));
+
+    let ver = "Astral Legends v0.1.0";
+    let vw = measure_text(ver, None, 12, 1.0).width;
+    draw_text(ver, sw * 0.5 - vw / 2.0, sh * 0.92, 12.0, GRAY);
 }
 
 fn draw_char_select(game: &Game) {
@@ -804,13 +821,21 @@ fn draw_wandering(game: &Game) {
                 draw_rectangle_lines(sx, sy, TILE, TILE, 1.5, Color::new(0.8, 0.8, 0.1, 1.0));
             }
             EntityKind::Pickup(item, _) => {
-                draw_rectangle(sx + 8.0, sy + 8.0, 16.0, 16.0, SKYBLUE);
+                draw_rectangle(sx + 6.0, sy + 6.0, 20.0, 20.0, SKYBLUE);
                 let label = match item.category {
                     inventory::ItemCategory::Consumable => "POTION",
                     inventory::ItemCategory::Material => "HERB",
                     inventory::ItemCategory::Equipment => "ITEM",
                 };
-                draw_text(label, sx, sy - 10.0, 10.0, YELLOW);
+                let lw = measure_text(label, None, 10, 1.0).width;
+                draw_rectangle(
+                    sx + 16.0 - lw / 2.0 - 2.0,
+                    sy - 12.0,
+                    lw + 4.0,
+                    12.0,
+                    Color::new(0.0, 0.0, 0.0, 0.8),
+                );
+                draw_text(label, sx + 16.0 - lw / 2.0, sy - 2.0, 10.0, YELLOW);
             }
         }
     }
@@ -909,12 +934,13 @@ fn draw_combat(game: &Game) {
         Color::new(0.08, 0.05, 0.12, 1.0),
     );
     draw_rectangle_lines(sw * 0.25, 80.0, sw * 0.5, 140.0, 2.0, DARKGRAY);
-    draw_text(&cs.enemy.name, sw * 0.35, 130.0, 28.0, ORANGE);
+    let enw = measure_text(&cs.enemy.name, None, 28, 1.0).width;
+    draw_text(&cs.enemy.name, sw * 0.5 - enw / 2.0, 130.0, 28.0, ORANGE);
 
     // Parry circle visualization
     if cs.phase == CombatPhase::ParryPhase {
         let cx = sw * 0.5;
-        let cy = 220.0;
+        let cy = 280.0;
         let max_radius = 60.0;
         let min_radius = 20.0;
 
@@ -967,7 +993,9 @@ fn draw_combat(game: &Game) {
         // Instruction text
         let urgency = (cs.parry_timer / PARRY_TIMEOUT).min(1.0);
         let col = Color::new(1.0, 1.0 - urgency, 0.0, 1.0);
-        draw_text("[ SPACE ] Parry!", cx, cy + max_radius + 50.0, 20.0, col);
+        let instr = "[ SPACE ] Parry!";
+        let iw = measure_text(instr, None, 20, 1.0).width;
+        draw_text(instr, cx - iw / 2.0, cy + max_radius + 50.0, 20.0, col);
     }
 
     let bw = sw * 0.18;
@@ -975,8 +1003,12 @@ fn draw_combat(game: &Game) {
     let base_y = sh - 70.0;
     let gap = sw * 0.02;
 
+    // Center 4 action buttons as a group
+    let group_w = 4.0 * bw + 3.0 * gap;
+    let start_x = sw * 0.5 - group_w / 2.0;
+
     for i in 0..4 {
-        let bx = sw * 0.07 + (i as f32) * (bw + gap);
+        let bx = start_x + (i as f32) * (bw + gap);
         let hover = cs.phase == CombatPhase::PlayerTurn
             && mouse_in_rect(bx, base_y, bw, bh);
         let color = match i {
@@ -989,7 +1021,8 @@ fn draw_combat(game: &Game) {
         draw_btn(&label, bx, base_y, bw, bh, hover, color);
     }
 
-    let flee_x = sw * 0.07 + 4.0 * (bw + gap);
+    // Flee button to the right of the group
+    let flee_x = start_x + group_w + gap;
     let fhover =
         cs.phase == CombatPhase::PlayerTurn && mouse_in_rect(flee_x, base_y, bw * 0.6, bh);
     draw_btn(
