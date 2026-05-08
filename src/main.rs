@@ -1622,7 +1622,8 @@ fn draw_game_over(game: &Game) {
 #[macroquad::main("Astral Legends")]
 async fn main() {
     let sprites = SpriteStore::load().await;
-    let audio_manager = AudioManager::new().await;
+    let mut audio_manager = AudioManager::new().await;
+    audio_manager.set_volume(0.5);
 
     let mut game = Game::new(sprites, audio_manager);
     game.scene = Scene::Intro;
