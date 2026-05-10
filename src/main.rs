@@ -2,6 +2,7 @@ mod character;
 mod combat;
 mod dialogue;
 mod inventory;
+mod audio;
 
 use macroquad::prelude::*;
 
@@ -9,6 +10,7 @@ use character::{Character, CharacterClass};
 use combat::{CombatPhase, CombatState, Enemy};
 use dialogue::{generic_dialogue, Dialogue};
 use inventory::{Inventory, Item};
+use audio::AudioManager;
 
 const TILE: f32 = 32.0;
 const MAP_W: usize = 28;
@@ -126,6 +128,7 @@ struct Game {
     reason: String,
     hover_class: Option<CharacterClass>,
     sprites: SpriteStore,
+    audio: AudioManager,
 }
 
 fn add_wall_border(m: &mut Vec<Vec<i32>>) {
@@ -262,7 +265,7 @@ fn make_entities() -> Vec<WorldEntity> {
 }
 
 impl Game {
-    fn new(sprites: SpriteStore) -> Self {
+    fn new(sprites: SpriteStore, audio: AudioManager) -> Self {
         Self {
             scene: Scene::MainMenu,
             player: None,
@@ -281,6 +284,7 @@ impl Game {
             reason: String::new(),
             hover_class: None,
             sprites,
+            audio,
         }
     }
 
@@ -439,6 +443,13 @@ fn update_intro(game: &mut Game, dt: f32) {
 }
 
 fn update_main_menu(game: &mut Game) {
+    let sw = screen_width();
+    let (btn_w, btn_h) = (140.0, 40.0);
+    let (bx , by) = (sw - btn_w - 20.0, 20.0);
+    if mouse_in_rect(bx, by, btn_w, btn_h)
+        && is_mouse_button_pressed(MouseButton::Left) {
+        game.audio.toggle_mute(); // ✅ now mutable
+    }
     if is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) {
         game.scene = Scene::CharSelect;
     }
@@ -980,6 +991,23 @@ fn draw_main_menu(_game: &Game) {
     let ver = "Astral Legends v0.1.0";
     let vw = measure_text(ver, None, 12, 1.0).width;
     draw_text(ver, sw * 0.5 - vw / 2.0, sh * 0.92, 12.0, GRAY);
+
+    let label = if _game.audio.is_muted {
+        "Sound: OFF"
+    } else {
+        "Sound: ON"
+    };
+
+    let (btn_w, btn_h) = (140.0, 40.0);
+    let (bx , by) = (sw - btn_w - 20.0, 20.0);
+    let hover = mouse_in_rect(bx, by, btn_w, btn_h);
+    let label = if _game.audio.is_muted {
+        "Sound: OFF"
+    } else {
+        "Sound: ON"
+    };
+
+    draw_btn(label, bx, by, btn_w, btn_h, hover, Color::new(0.2, 0.2, 0.3, 1.0));
 }
 
 fn draw_intro(_game: &Game) {
@@ -1594,9 +1622,14 @@ fn draw_game_over(game: &Game) {
 #[macroquad::main("Astral Legends")]
 async fn main() {
     let sprites = SpriteStore::load().await;
-    let mut game = Game::new(sprites);
+    let mut audio_manager = AudioManager::new().await;
+    audio_manager.set_volume(0.5);
+
+    let mut game = Game::new(sprites, audio_manager);
     game.scene = Scene::Intro;
     game.msg_timer = 2.5;
+
+    game.audio.play_music();
 
     loop {
         let dt = get_frame_time().min(0.05);
