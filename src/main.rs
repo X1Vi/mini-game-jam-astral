@@ -20,6 +20,9 @@ const ENEMY_FOLLOW_SPEED: f32 = 65.0;
 const BAT_FOLLOW_SPEED: f32 = 85.0;
 const FOLLOW_RANGE: f32 = 4.0 * TILE;
 const PARRY_TIMEOUT: f32 = 1.2;
+const MIN_SCREEN_WIDTH: f32 = 1100.0;
+const MIN_SCREEN_HEIGHT: f32 = 720.0;
+
 
 #[derive(Clone, Copy, PartialEq)]
 enum Scene {
@@ -262,6 +265,24 @@ fn make_entities() -> Vec<WorldEntity> {
         WorldEntity { x: 24.0 * TILE, y: 15.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)), alive: true, speed: ENEMY_FOLLOW_SPEED },
         WorldEntity { x: 13.0 * TILE, y: 7.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Ghost", 55, 10, 13)), alive: true, speed: ENEMY_FOLLOW_SPEED },
     ]
+}
+
+fn screen_width() -> f32 {
+    let sw = macroquad::window::screen_width();
+    if sw < MIN_SCREEN_WIDTH {
+        request_new_screen_size(MIN_SCREEN_WIDTH, macroquad::window::screen_height());
+        return MIN_SCREEN_WIDTH;
+    }
+    sw
+}
+
+fn screen_height() -> f32 {
+    let sh = macroquad::window::screen_height();
+    if sh < MIN_SCREEN_HEIGHT {
+        request_new_screen_size(macroquad::window::screen_width(), MIN_SCREEN_HEIGHT);
+        return MIN_SCREEN_HEIGHT;
+    }
+    sh
 }
 
 impl Game {
@@ -699,6 +720,8 @@ fn update_pause(game: &mut Game) {
         game.scene = Scene::Wandering;
     } else if is_key_pressed(KeyCode::Key2) {
         game.scene = Scene::MainMenu;
+    } else if is_key_pressed(KeyCode::Key3) {
+        game.audio.toggle_mute();
     }
 }
 
@@ -991,12 +1014,6 @@ fn draw_main_menu(_game: &Game) {
     let ver = "Astral Legends v0.1.0";
     let vw = measure_text(ver, None, 12, 1.0).width;
     draw_text(ver, sw * 0.5 - vw / 2.0, sh * 0.92, 12.0, GRAY);
-
-    let label = if _game.audio.is_muted {
-        "Sound: OFF"
-    } else {
-        "Sound: ON"
-    };
 
     let (btn_w, btn_h) = (140.0, 40.0);
     let (bx , by) = (sw - btn_w - 20.0, 20.0);
@@ -1590,7 +1607,7 @@ fn draw_dialogue_scene(game: &Game) {
 
 fn draw_pause(_game: &Game) {
     let sw = screen_width();
-    let sh = screen_height();
+    let sh: f32 = screen_height();
     draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.0, 0.0, 0.0, 0.7));
     draw_rectangle_lines(sw * 0.3, sh * 0.3, sw * 0.4, sh * 0.4, 2.0, GOLD);
 
@@ -1606,6 +1623,15 @@ fn draw_pause(_game: &Game) {
     let r2w = measure_text(r2, None, 24, 1.0).width;
     draw_text(r2, sw * 0.5 - r2w / 2.0, sh * 0.58, 24.0, Color::new(0.8, 0.4, 0.4, 1.0));
 
+    let val: &str = match _game.audio.is_muted {
+        true => "ON",
+        false => "OFF",
+    };
+    let r3 = format!("[3] Audio ON / OFF  ({})", val);
+    let r3 = r3.as_str();
+    let r3w = measure_text(r3, None, 24, 1.0).width;
+    draw_text(r3, sw * 0.5 - r3w / 2.0, sh * 0.64, 24.0, Color::new(0.8, 0.4, 0.4, 1.0));
+
     let hint = "ESC to resume";
     let hw = measure_text(hint, None, 14, 1.0).width;
     draw_text(hint, sw * 0.5 - hw / 2.0, sh * 0.68, 14.0, GRAY);
@@ -1619,7 +1645,17 @@ fn draw_game_over(game: &Game) {
     draw_text("Press ENTER to restart", sw * 0.28, sh * 0.58, 20.0, WHITE);
 }
 
-#[macroquad::main("Astral Legends")]
+fn conf() -> Conf {
+    Conf {
+        window_title: "Astral Legends".to_owned(),
+        window_width: MIN_SCREEN_WIDTH as i32,    // Initial width
+        window_height: MIN_SCREEN_HEIGHT as i32,   // Initial height
+        window_resizable: true, // Allows enlarging the window
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(conf())]
 async fn main() {
     let sprites = SpriteStore::load().await;
     let mut audio_manager = AudioManager::new().await;
