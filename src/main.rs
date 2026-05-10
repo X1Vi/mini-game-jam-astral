@@ -699,6 +699,8 @@ fn update_pause(game: &mut Game) {
         game.scene = Scene::Wandering;
     } else if is_key_pressed(KeyCode::Key2) {
         game.scene = Scene::MainMenu;
+    } else if is_key_pressed(KeyCode::Key3) {
+        game.audio.toggle_mute();
     }
 }
 
@@ -1590,7 +1592,7 @@ fn draw_dialogue_scene(game: &Game) {
 
 fn draw_pause(_game: &Game) {
     let sw = screen_width();
-    let sh = screen_height();
+    let sh: f32 = screen_height();
     draw_rectangle(0.0, 0.0, sw, sh, Color::new(0.0, 0.0, 0.0, 0.7));
     draw_rectangle_lines(sw * 0.3, sh * 0.3, sw * 0.4, sh * 0.4, 2.0, GOLD);
 
@@ -1605,6 +1607,15 @@ fn draw_pause(_game: &Game) {
     let r2 = "[2] Main Menu";
     let r2w = measure_text(r2, None, 24, 1.0).width;
     draw_text(r2, sw * 0.5 - r2w / 2.0, sh * 0.58, 24.0, Color::new(0.8, 0.4, 0.4, 1.0));
+
+    let val: &str = match _game.audio.is_muted {
+        true => "ON",
+        false => "OFF",
+    };
+    let r3 = format!("[3] Audio ON / OFF  ({})", val);
+    let r3 = r3.as_str();
+    let r3w = measure_text(r3, None, 24, 1.0).width;
+    draw_text(r3, sw * 0.5 - r3w / 2.0, sh * 0.64, 24.0, Color::new(0.8, 0.4, 0.4, 1.0));
 
     let hint = "ESC to resume";
     let hw = measure_text(hint, None, 14, 1.0).width;
