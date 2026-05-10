@@ -20,6 +20,9 @@ const ENEMY_FOLLOW_SPEED: f32 = 65.0;
 const BAT_FOLLOW_SPEED: f32 = 85.0;
 const FOLLOW_RANGE: f32 = 4.0 * TILE;
 const PARRY_TIMEOUT: f32 = 1.2;
+const MIN_SCREEN_WIDTH: f32 = 1100.0;
+const MIN_SCREEN_HEIGHT: f32 = 720.0;
+
 
 #[derive(Clone, Copy, PartialEq)]
 enum Scene {
@@ -262,6 +265,24 @@ fn make_entities() -> Vec<WorldEntity> {
         WorldEntity { x: 24.0 * TILE, y: 15.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Bandit Leader", 80, 13, 14)), alive: true, speed: ENEMY_FOLLOW_SPEED },
         WorldEntity { x: 13.0 * TILE, y: 7.0 * TILE, kind: EntityKind::Enemy(Enemy::basic("Ghost", 55, 10, 13)), alive: true, speed: ENEMY_FOLLOW_SPEED },
     ]
+}
+
+fn screen_width() -> f32 {
+    let sw = macroquad::window::screen_width();
+    if sw < MIN_SCREEN_WIDTH {
+        request_new_screen_size(MIN_SCREEN_WIDTH, macroquad::window::screen_height());
+        return MIN_SCREEN_WIDTH;
+    }
+    sw
+}
+
+fn screen_height() -> f32 {
+    let sh = macroquad::window::screen_height();
+    if sh < MIN_SCREEN_HEIGHT {
+        request_new_screen_size(macroquad::window::screen_width(), MIN_SCREEN_HEIGHT);
+        return MIN_SCREEN_HEIGHT;
+    }
+    sh
 }
 
 impl Game {
@@ -994,12 +1015,6 @@ fn draw_main_menu(_game: &Game) {
     let vw = measure_text(ver, None, 12, 1.0).width;
     draw_text(ver, sw * 0.5 - vw / 2.0, sh * 0.92, 12.0, GRAY);
 
-    let label = if _game.audio.is_muted {
-        "Sound: OFF"
-    } else {
-        "Sound: ON"
-    };
-
     let (btn_w, btn_h) = (140.0, 40.0);
     let (bx , by) = (sw - btn_w - 20.0, 20.0);
     let hover = mouse_in_rect(bx, by, btn_w, btn_h);
@@ -1630,7 +1645,17 @@ fn draw_game_over(game: &Game) {
     draw_text("Press ENTER to restart", sw * 0.28, sh * 0.58, 20.0, WHITE);
 }
 
-#[macroquad::main("Astral Legends")]
+fn conf() -> Conf {
+    Conf {
+        window_title: "Astral Legends".to_owned(),
+        window_width: MIN_SCREEN_WIDTH as i32,    // Initial width
+        window_height: MIN_SCREEN_HEIGHT as i32,   // Initial height
+        window_resizable: true, // Allows enlarging the window
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(conf())]
 async fn main() {
     let sprites = SpriteStore::load().await;
     let mut audio_manager = AudioManager::new().await;
